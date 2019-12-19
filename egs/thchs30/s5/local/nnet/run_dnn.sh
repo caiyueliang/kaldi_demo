@@ -102,25 +102,25 @@ if [ $stage -le 3 ]; then
     sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
 
     # 执行脚本train_faster.sh
-    # ${cuda_cmd} ${dir}/train_faster_nnet.log \
-    #     steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
-    #     --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
-    #     --train-tool "nnet-train-fsmn-streams" \
-    #     --feat-type plain --splice 1 \
-    #     --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
-    #     --train-tool-opts "--minibatch-size=4096" \
-    #     ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
-    #     # $data_fbk/train_960_cleaned $data_fbk/dev_clean data/lang exp/tri6b_cleaned_ali_train_960_cleaned exp/tri6b_cleaned_ali_dev_clean $dir
-
-    # 执行脚本train.sh
-    ${cuda_cmd} ${dir}/train_nnet.log \
-        steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
-        --max_iters ${max_iters} --momentum ${momentum} \
+    ${cuda_cmd} ${dir}/train_faster_nnet.log \
+        steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+        --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
         --train-tool "nnet-train-fsmn-streams" \
         --feat-type plain --splice 1 \
         --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
         --train-tool-opts "--minibatch-size=4096" \
         ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+        # $data_fbk/train_960_cleaned $data_fbk/dev_clean data/lang exp/tri6b_cleaned_ali_train_960_cleaned exp/tri6b_cleaned_ali_dev_clean $dir
+
+    # # 执行脚本train.sh
+    # ${cuda_cmd} ${dir}/train_nnet.log \
+    #     steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+    #     --max_iters ${max_iters} --momentum ${momentum} \
+    #     --train-tool "nnet-train-fsmn-streams" \
+    #     --feat-type plain --splice 1 \
+    #     --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
+    #     --train-tool-opts "--minibatch-size=4096" \
+    #     ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
 
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
