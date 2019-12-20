@@ -7,6 +7,8 @@
 !/src/*/Makefile
 !/src/*/README
 
+*.DS_Store
+
 # Compiled Object files and python ciles
 *.slo
 *.lo
