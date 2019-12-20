@@ -79,9 +79,20 @@ momentum=0.9
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
 data_fbk=data_fbank
-echo "[FSMN][CE-training]      dir: "${dir}
-echo "[FSMN][CE-training] cuda_cmd: "${cuda_cmd}
-if [ $stage -le 3 ]; then
+acwt=0.08
+
+echo "[FSMN][CE-training]           dir: "${dir}
+echo "[FSMN][CE-training]      cuda_cmd: "${cuda_cmd}
+echo "[FSMN][CE-training]    learn_rate: "${learn_rate}
+echo "[FSMN][CE-training]     max_iters: "${max_iters}
+echo "[FSMN][CE-training] start_half_lr: "${start_half_lr}
+echo "[FSMN][CE-training]      momentum: "${momentum}
+echo "[FSMN][CE-training]     dnn_model: "${dnn_model}
+echo "[FSMN][CE-training]      data_fbk: "${data_fbk}
+echo "[FSMN][CE-training]          acwt: "${acwt}
+
+echo "[FSMN] 5 =================================="
+if [ ${stage} -le 3 ]; then
     if [ ! -d "${dir}" ]; then
         mkdir ${dir}
         mkdir ${dir}/decode_test_word
@@ -124,11 +135,11 @@ if [ $stage -le 3 ]; then
 
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
-    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt 0.1 \
+    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
         ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
 
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_phone"
-    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt 0.1 \
+    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
         ${gmmdir}/graph_phone ${data_fbk}/test_phone ${dir}/decode_test_phone || exit 1;
 
  	for x in ${dir}/decode_*;
@@ -139,7 +150,7 @@ if [ $stage -le 3 ]; then
 fi
 
 ####Decode
-echo "[FSMN] 5 =================================="
+echo "[FSMN] 6 =================================="
 #acwt=0.08
 #if [ $stage -le 4 ]; then
 #	# gmm=exp/tri6b_cleaned
@@ -149,7 +160,7 @@ echo "[FSMN] 5 =================================="
 #   for set in ${dataset}
 #   do
 #       # 解码
-#       steps/nnet/decode.sh --nj 16 --cmd "$decode_cmd" --acwt $acwt \
+#       steps/nnet/decode.sh --nj 16 --cmd "$decode_cmd" --acwt ${acwt} \
 #	        ${gmm}/graph_tgsmall ${data_fbk}/${set} ${dir}/decode_tgsmall_${set}
 #
 #       steps/lmrescore.sh --cmd "$decode_cmd" data/lang_test_{tgsmall,tgmed} \
@@ -169,7 +180,7 @@ echo "[FSMN] 5 =================================="
 # 	done
 #fi
 
-echo "[FSMN] 6 =================================="
+echo "[FSMN] 7 =================================="
 # gen ali & lat for smbr
 if [ ${stage} -le 5 ]; then
     steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" \
@@ -178,45 +189,45 @@ if [ ${stage} -le 5 ]; then
         ${data_fbk}/train data/lang ${dir} ${dir}_denlats
 fi
 
-echo "[FSMN] 7 =================================="
+echo "[FSMN] 8 =================================="
 ####do smbr
-if [ $stage -le 5 ]; then
+if [ ${stage} -le 5 ]; then
     steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 2 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
         ${data_fbk}/train data/lang ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
 fi
 
 ###decode
-echo "[FSMN] 8 =================================="
-dir=${dir}_smbr
-acwt=0.03
-if [ $stage -le 6 ]; then
-    gmm=exp/tri6b_cleaned
-    # dataset="test_clean dev_clean test_other dev_other"
-    dataset="test dev"
-    for set in ${dataset}
-    do
-        steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" \
-            --acwt ${acwt} \
-            ${gmm}/graph_tgsmall \
-            ${data_fbk}/${set} ${dir}/decode_tgsmall_${set}
-
-        steps/lmrescore.sh --cmd "${decode_cmd}" data/lang_test_{tgsmall,tgmed} \
-            ${data_fbk}/${set} ${dir}/decode_{tgsmall,tgmed}_${set}
-
-        steps/lmrescore_const_arpa.sh \
-            --cmd "${decode_cmd}" data/lang_test_{tgsmall,tglarge} \
-            ${data_fbk}/${set} ${dir}/decode_{tgsmall,tglarge}_${set}
-
-        steps/lmrescore_const_arpa.sh \
-            --cmd "${decode_cmd}" data/lang_test_{tgsmall,fglarge} \
-            ${data_fbk}/${set} ${dir}/decode_{tgsmall,fglarge}_${set}
-    done
-    for x in ${dir}/decode_*;
-    do
-        echo "[FSMN][CE-training][best_wer] dir: "${x}
-        grep WER ${x}/wer_* | utils/best_wer.sh
-    done
-fi
+#echo "[FSMN] 9 =================================="
+#dir=${dir}_smbr
+#acwt=0.03
+#if [ $stage -le 6 ]; then
+#    gmm=exp/tri6b_cleaned
+#    # dataset="test_clean dev_clean test_other dev_other"
+#    dataset="test dev"
+#    for set in ${dataset}
+#    do
+#        steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" \
+#            --acwt ${acwt} \
+#            ${gmm}/graph_tgsmall \
+#            ${data_fbk}/${set} ${dir}/decode_tgsmall_${set}
+#
+#        steps/lmrescore.sh --cmd "${decode_cmd}" data/lang_test_{tgsmall,tgmed} \
+#            ${data_fbk}/${set} ${dir}/decode_{tgsmall,tgmed}_${set}
+#
+#        steps/lmrescore_const_arpa.sh \
+#            --cmd "${decode_cmd}" data/lang_test_{tgsmall,tglarge} \
+#            ${data_fbk}/${set} ${dir}/decode_{tgsmall,tglarge}_${set}
+#
+#        steps/lmrescore_const_arpa.sh \
+#            --cmd "${decode_cmd}" data/lang_test_{tgsmall,fglarge} \
+#            ${data_fbk}/${set} ${dir}/decode_{tgsmall,fglarge}_${set}
+#    done
+#    for x in ${dir}/decode_*;
+#    do
+#        echo "[FSMN][CE-training][best_wer] dir: "${x}
+#        grep WER ${x}/wer_* | utils/best_wer.sh
+#    done
+#fi
 
 
 # ======================================================================================================================
