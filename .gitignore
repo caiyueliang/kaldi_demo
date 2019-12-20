@@ -8,6 +8,7 @@
 !/src/*/README
 
 *.DS_Store
+.idea/
 
 # Compiled Object files and python ciles
 *.slo
