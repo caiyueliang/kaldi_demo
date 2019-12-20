@@ -23,7 +23,7 @@ echo "[run_dnn.sh]    alidir: "${alidir}
 echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
 
 # ======================================================================================================================
-# echo "[run_dnn.sh] 2 =================================="
+echo "[run_dnn.sh] 2 =================================="
 # #generate fbanks  生成FBank特征，是40维FBank
 # if [ $stage -le 0 ]; then
 #   echo "DNN training: stage 0: feature generation"
@@ -124,16 +124,16 @@ if [ $stage -le 3 ]; then
 
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
-    steps/nnet/decode.sh --nj $nj --cmd "$decode_cmd" --srcdir ${dir} --acwt 0.1 \
+    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt 0.1 \
         ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
 
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_phone"
-    steps/nnet/decode.sh --nj $nj --cmd "$decode_cmd" --srcdir ${dir} --acwt 0.1 \
+    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt 0.1 \
         ${gmmdir}/graph_phone ${data_fbk}/test_phone ${dir}/decode_test_phone || exit 1;
 
  	for x in ${dir}/decode_*;
  	do
- 	    echo "[FSMN][CE-training][est_wer] dir: "${x}
+ 	    echo "[FSMN][CE-training][best_wer] dir: "${x}
         grep WER ${x}/wer_* | utils/best_wer.sh
  	done
 fi
@@ -168,6 +168,56 @@ echo "[FSMN] 5 =================================="
 #       grep WER $x/wer_* | utils/best_wer.sh
 # 	done
 #fi
+
+echo "[FSMN] 6 =================================="
+# gen ali & lat for smbr
+if [ ${stage} -le 5 ]; then
+    steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" \
+        ${data_fbk}/train data/lang ${dir} ${dir}_ali
+    steps/nnet/make_denlats.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
+        ${data_fbk}/train data/lang ${dir} ${dir}_denlats
+fi
+
+echo "[FSMN] 7 =================================="
+####do smbr
+if [ $stage -le 5 ]; then
+    steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 2 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
+        ${data_fbk}/train data/lang ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
+fi
+
+###decode
+echo "[FSMN] 8 =================================="
+dir=${dir}_smbr
+acwt=0.03
+if [ $stage -le 6 ]; then
+    gmm=exp/tri6b_cleaned
+    # dataset="test_clean dev_clean test_other dev_other"
+    dataset="test dev"
+    for set in ${dataset}
+    do
+        steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" \
+            --acwt ${acwt} \
+            ${gmm}/graph_tgsmall \
+            ${data_fbk}/${set} ${dir}/decode_tgsmall_${set}
+
+        steps/lmrescore.sh --cmd "${decode_cmd}" data/lang_test_{tgsmall,tgmed} \
+            ${data_fbk}/${set} ${dir}/decode_{tgsmall,tgmed}_${set}
+
+        steps/lmrescore_const_arpa.sh \
+            --cmd "${decode_cmd}" data/lang_test_{tgsmall,tglarge} \
+            ${data_fbk}/${set} ${dir}/decode_{tgsmall,tglarge}_${set}
+
+        steps/lmrescore_const_arpa.sh \
+            --cmd "${decode_cmd}" data/lang_test_{tgsmall,fglarge} \
+            ${data_fbk}/${set} ${dir}/decode_{tgsmall,fglarge}_${set}
+    done
+    for x in ${dir}/decode_*;
+    do
+        echo "[FSMN][CE-training][best_wer] dir: "${x}
+        grep WER ${x}/wer_* | utils/best_wer.sh
+    done
+fi
+
 
 # ======================================================================================================================
 # echo "[run_dnn.sh] 3 =================================="
