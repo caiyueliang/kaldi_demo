@@ -127,13 +127,11 @@ steps/train_sat.sh --cmd "$train_cmd" \
   3500 100000 data/train data/lang exp/tri4a_ali exp/tri5a || exit 1;
 
 utils/mkgraph.sh data/lang_test exp/tri5a exp/tri5a/graph || exit 1;
-steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config \
-   exp/tri5a/graph data/dev exp/tri5a/decode_dev || exit 1;
-steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config \
-   exp/tri5a/graph data/test exp/tri5a/decode_test || exit 1;
+steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config exp/tri5a/graph data/dev exp/tri5a/decode_dev || exit 1;
+steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config exp/tri5a/graph data/test exp/tri5a/decode_test || exit 1;
 
-steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 \
-  data/train data/lang exp/tri5a exp/tri5a_ali || exit 1;
+steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 data/train data/lang exp/tri5a exp/tri5a_ali || exit 1;
+steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 data/dev data/lang exp/tri5a exp/tri5a_ali_cv || exit 1;
 
 # nnet3
 local/nnet3/run_tdnn.sh
