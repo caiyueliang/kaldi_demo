@@ -24,37 +24,37 @@ echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
 
 # ======================================================================================================================
 echo "[run_dnn.sh] 2 =================================="
- #generate fbanks  生成FBank特征，是40维FBank
- if [ $stage -le 0 ]; then
-   echo "DNN training: stage 0: feature generation"
-   # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
-   rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
-   for x in train dev test; do
-     echo "producing fbank for $x"
-     #fbank generation
-     steps/make_fbank.sh --nj $nj --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
-     #ompute cmvn
-     steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
-   done
-
-   echo "producing test_fbank_phone"
-   cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
- fi
+##generate fbanks  生成FBank特征，是40维FBank
+#if [ $stage -le 0 ]; then
+#  echo "DNN training: stage 0: feature generation"
+#  # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
+#  rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
+#  for x in train dev test; do
+#    echo "producing fbank for $x"
+#    #fbank generation
+#    steps/make_fbank.sh --nj $nj --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
+#    #ompute cmvn
+#    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
+#  done
+#
+#  echo "producing test_fbank_phone"
+#  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
+#fi
 
 # ======================================================================================================================
 echo "[FSMN] 2 =================================="
- ##Make fbank features
- if [ $stage -le 1 ]; then
-     mkdir -p data_fbank
-
-     # for x in train_960_cleaned test_other test_clean dev_other dev_clean; do
-     for x in train dev test; do
-         fbankdir=fbank/$x
-         cp -r data/$x data_fbank/$x
-         steps/make_fbank.sh --nj $nj --cmd "${train_cmd}"  --fbank-config conf/fbank.conf data_fbank/$x exp/make_fbank/$x $fbankdir
-         steps/compute_cmvn_stats.sh data_fbank/$x exp/make_fbank/$x $fbankdir
-     done
- fi
+###Make fbank features
+#if [ $stage -le 1 ]; then
+#    mkdir -p data_fbank
+#
+#    # for x in train_960_cleaned test_other test_clean dev_other dev_clean; do
+#    for x in train dev test; do
+#        fbankdir=fbank/${x}
+#        cp -r data/${x} data_fbank/${x}
+#        steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}"  --fbank-config conf/fbank.conf data_fbank/${x} exp/make_fbank/${x} ${fbankdir}
+#        steps/compute_cmvn_stats.sh data_fbank/${x} exp/make_fbank/${x} ${fbankdir}
+#    done
+#fi
 
 # ======================================================================================================================
 # run_fsmn_ivector.sh的部分
@@ -74,7 +74,7 @@ echo "[FSMN] 2 =================================="
 echo "[FSMN] 4 =================================="
 learn_rate=0.00001
 max_iters=20
-start_half_lr=9
+start_half_lr=5
 momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
