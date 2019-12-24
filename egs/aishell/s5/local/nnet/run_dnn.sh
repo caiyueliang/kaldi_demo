@@ -74,7 +74,7 @@ echo "[FSMN] 2 =================================="
 echo "[FSMN] 4 =================================="
 learn_rate=0.00001
 max_iters=20
-start_half_lr=5
+start_half_lr=10
 momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
@@ -137,7 +137,7 @@ if [ ${stage} -le 3 ]; then
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
     steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
-        ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
+        ${gmmdir}/graph ${data_fbk}/test ${dir}/decode_test_word || exit 1;
 
     # echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_phone"
     # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
@@ -213,7 +213,7 @@ if [ $stage -le 6 ]; then
         # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
         #     ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
         steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
-            ${gmmdir}/graph_word ${data_fbk}/${set} ${dir}/decode_${set}_word || exit 1;
+            ${gmmdir}/graph ${data_fbk}/${set} ${dir}/decode_${set}_word || exit 1;
 
         # steps/lmrescore.sh --cmd "${decode_cmd}" data/lang_test_{tgsmall,tgmed} \
         #     ${data_fbk}/${set} ${dir}/decode_{tgsmall,tgmed}_${set}
