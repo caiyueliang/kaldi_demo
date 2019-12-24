@@ -1,0 +1,304 @@
+nohup: ignoring input
+============================================================================
+                Data & Lexicon & Language Preparation                     
+============================================================================
+wav-to-duration --read-entire-file=true scp:train_wav.scp ark,t:train_dur.ark 
+LOG (wav-to-duration[5.4.164~1407-e3b4f]:main():wav-to-duration.cc:92) Printed duration for 3696 audio files.
+LOG (wav-to-duration[5.4.164~1407-e3b4f]:main():wav-to-duration.cc:94) Mean duration was 3.06336, min and max durations were 0.91525, 7.78881
+wav-to-duration --read-entire-file=true scp:dev_wav.scp ark,t:dev_dur.ark 
+LOG (wav-to-duration[5.4.164~1407-e3b4f]:main():wav-to-duration.cc:92) Printed duration for 400 audio files.
+LOG (wav-to-duration[5.4.164~1407-e3b4f]:main():wav-to-duration.cc:94) Mean duration was 3.08212, min and max durations were 1.09444, 7.43681
+wav-to-duration --read-entire-file=true scp:test_wav.scp ark,t:test_dur.ark 
+LOG (wav-to-duration[5.4.164~1407-e3b4f]:main():wav-to-duration.cc:92) Printed duration for 192 audio files.
+LOG (wav-to-duration[5.4.164~1407-e3b4f]:main():wav-to-duration.cc:94) Mean duration was 3.03646, min and max durations were 1.30562, 6.21444
+Data preparation succeeded
+LOGFILE:/dev/null
+$bin/ngt -i="$inpfile" -n=$order -gooout=y -o="$gzip -c > $tmpdir/ngram.${sdict}.gz" -fd="$tmpdir/$sdict" $dictionary $additional_parameters >> $logfile 2>&1
+$scr/build-sublm.pl $verbose $prune $prune_thr_str $smoothing "$additional_smoothing_parameters" --size $order --ngrams "$gunzip -c $tmpdir/ngram.${sdict}.gz" -sublm $tmpdir/lm.$sdict $additional_parameters >> $logfile 2>&1
+$scr/build-sublm.pl $verbose $prune $prune_thr_str $smoothing "$additional_smoothing_parameters" --size $order --ngrams "$gunzip -c $tmpdir/ngram.${sdict}.gz" -sublm $tmpdir/lm.$sdict $additional_parameters >> $logfile 2>&1
+inpfile: data/local/lm_tmp/lm_phone_bg.ilm.gz
+outfile: /dev/stdout
+loading up to the LM level 1000 (if any)
+dub: 10000000
+OOV code is 50
+OOV code is 50
+Saving in txt format to /dev/stdout
+Dictionary & language model preparation succeeded
+utils/prepare_lang.sh --sil-prob 0.0 --position-dependent-phones false --num-sil-states 3 data/local/dict sil data/local/lang_tmp data/lang
+Checking data/local/dict/silence_phones.txt ...
+--> reading data/local/dict/silence_phones.txt
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/local/dict/silence_phones.txt is OK
+
+Checking data/local/dict/optional_silence.txt ...
+--> reading data/local/dict/optional_silence.txt
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/local/dict/optional_silence.txt is OK
+
+Checking data/local/dict/nonsilence_phones.txt ...
+--> reading data/local/dict/nonsilence_phones.txt
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/local/dict/nonsilence_phones.txt is OK
+
+Checking disjoint: silence_phones.txt, nonsilence_phones.txt
+--> disjoint property is OK.
+
+Checking data/local/dict/lexicon.txt
+--> reading data/local/dict/lexicon.txt
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/local/dict/lexicon.txt is OK
+
+Checking data/local/dict/extra_questions.txt ...
+--> reading data/local/dict/extra_questions.txt
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/local/dict/extra_questions.txt is OK
+--> SUCCESS [validating dictionary directory data/local/dict]
+
+**Creating data/local/dict/lexiconp.txt from data/local/dict/lexicon.txt
+fstaddselfloops data/lang/phones/wdisambig_phones.int data/lang/phones/wdisambig_words.int 
+prepare_lang.sh: validating output directory
+utils/validate_lang.pl data/lang
+Checking data/lang/phones.txt ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/lang/phones.txt is OK
+
+Checking words.txt: #0 ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/lang/words.txt is OK
+
+Checking disjoint: silence.txt, nonsilence.txt, disambig.txt ...
+--> silence.txt and nonsilence.txt are disjoint
+--> silence.txt and disambig.txt are disjoint
+--> disambig.txt and nonsilence.txt are disjoint
+--> disjoint property is OK
+
+Checking sumation: silence.txt, nonsilence.txt, disambig.txt ...
+--> summation property is OK
+
+Checking data/lang/phones/context_indep.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang/phones/context_indep.txt
+--> data/lang/phones/context_indep.int corresponds to data/lang/phones/context_indep.txt
+--> data/lang/phones/context_indep.csl corresponds to data/lang/phones/context_indep.txt
+--> data/lang/phones/context_indep.{txt, int, csl} are OK
+
+Checking data/lang/phones/nonsilence.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 47 entry/entries in data/lang/phones/nonsilence.txt
+--> data/lang/phones/nonsilence.int corresponds to data/lang/phones/nonsilence.txt
+--> data/lang/phones/nonsilence.csl corresponds to data/lang/phones/nonsilence.txt
+--> data/lang/phones/nonsilence.{txt, int, csl} are OK
+
+Checking data/lang/phones/silence.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang/phones/silence.txt
+--> data/lang/phones/silence.int corresponds to data/lang/phones/silence.txt
+--> data/lang/phones/silence.csl corresponds to data/lang/phones/silence.txt
+--> data/lang/phones/silence.{txt, int, csl} are OK
+
+Checking data/lang/phones/optional_silence.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang/phones/optional_silence.txt
+--> data/lang/phones/optional_silence.int corresponds to data/lang/phones/optional_silence.txt
+--> data/lang/phones/optional_silence.csl corresponds to data/lang/phones/optional_silence.txt
+--> data/lang/phones/optional_silence.{txt, int, csl} are OK
+
+Checking data/lang/phones/disambig.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 2 entry/entries in data/lang/phones/disambig.txt
+--> data/lang/phones/disambig.int corresponds to data/lang/phones/disambig.txt
+--> data/lang/phones/disambig.csl corresponds to data/lang/phones/disambig.txt
+--> data/lang/phones/disambig.{txt, int, csl} are OK
+
+Checking data/lang/phones/roots.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 48 entry/entries in data/lang/phones/roots.txt
+--> data/lang/phones/roots.int corresponds to data/lang/phones/roots.txt
+--> data/lang/phones/roots.{txt, int} are OK
+
+Checking data/lang/phones/sets.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 48 entry/entries in data/lang/phones/sets.txt
+--> data/lang/phones/sets.int corresponds to data/lang/phones/sets.txt
+--> data/lang/phones/sets.{txt, int} are OK
+
+Checking data/lang/phones/extra_questions.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 2 entry/entries in data/lang/phones/extra_questions.txt
+--> data/lang/phones/extra_questions.int corresponds to data/lang/phones/extra_questions.txt
+--> data/lang/phones/extra_questions.{txt, int} are OK
+
+Checking optional_silence.txt ...
+--> reading data/lang/phones/optional_silence.txt
+--> data/lang/phones/optional_silence.txt is OK
+
+Checking disambiguation symbols: #0 and #1
+--> data/lang/phones/disambig.txt has "#0" and "#1"
+--> data/lang/phones/disambig.txt is OK
+
+Checking topo ...
+
+Checking word-level disambiguation symbols...
+--> data/lang/phones/wdisambig.txt exists (newer prepare_lang.sh)
+Checking data/lang/oov.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang/oov.txt
+--> data/lang/oov.int corresponds to data/lang/oov.txt
+--> data/lang/oov.{txt, int} are OK
+
+--> data/lang/L.fst is olabel sorted
+--> data/lang/L_disambig.fst is olabel sorted
+--> SUCCESS [validating lang directory data/lang]
+Preparing train, dev and test data
+utils/validate_data_dir.sh: Successfully validated data-directory data/train
+utils/validate_data_dir.sh: Successfully validated data-directory data/dev
+utils/validate_data_dir.sh: Successfully validated data-directory data/test
+Preparing language models for test
+arpa2fst --disambig-symbol=#0 --read-symbol-table=data/lang_test_bg/words.txt - data/lang_test_bg/G.fst 
+LOG (arpa2fst[5.4.164~1407-e3b4f]:Read():arpa-file-parser.cc:94) Reading \data\ section.
+LOG (arpa2fst[5.4.164~1407-e3b4f]:Read():arpa-file-parser.cc:149) Reading \1-grams: section.
+LOG (arpa2fst[5.4.164~1407-e3b4f]:Read():arpa-file-parser.cc:149) Reading \2-grams: section.
+WARNING (arpa2fst[5.4.164~1407-e3b4f]:ConsumeNGram():arpa-lm-compiler.cc:313) line 60 [-3.26717	<s> <s>] skipped: n-gram has invalid BOS/EOS placement
+LOG (arpa2fst[5.4.164~1407-e3b4f]:RemoveRedundantStates():arpa-lm-compiler.cc:359) Reduced num-states from 50 to 50
+fstisstochastic data/lang_test_bg/G.fst 
+0.000510126 -0.0763018
+utils/validate_lang.pl data/lang_test_bg
+Checking data/lang_test_bg/phones.txt ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/lang_test_bg/phones.txt is OK
+
+Checking words.txt: #0 ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> data/lang_test_bg/words.txt is OK
+
+Checking disjoint: silence.txt, nonsilence.txt, disambig.txt ...
+--> silence.txt and nonsilence.txt are disjoint
+--> silence.txt and disambig.txt are disjoint
+--> disambig.txt and nonsilence.txt are disjoint
+--> disjoint property is OK
+
+Checking sumation: silence.txt, nonsilence.txt, disambig.txt ...
+--> summation property is OK
+
+Checking data/lang_test_bg/phones/context_indep.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang_test_bg/phones/context_indep.txt
+--> data/lang_test_bg/phones/context_indep.int corresponds to data/lang_test_bg/phones/context_indep.txt
+--> data/lang_test_bg/phones/context_indep.csl corresponds to data/lang_test_bg/phones/context_indep.txt
+--> data/lang_test_bg/phones/context_indep.{txt, int, csl} are OK
+
+Checking data/lang_test_bg/phones/nonsilence.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 47 entry/entries in data/lang_test_bg/phones/nonsilence.txt
+--> data/lang_test_bg/phones/nonsilence.int corresponds to data/lang_test_bg/phones/nonsilence.txt
+--> data/lang_test_bg/phones/nonsilence.csl corresponds to data/lang_test_bg/phones/nonsilence.txt
+--> data/lang_test_bg/phones/nonsilence.{txt, int, csl} are OK
+
+Checking data/lang_test_bg/phones/silence.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang_test_bg/phones/silence.txt
+--> data/lang_test_bg/phones/silence.int corresponds to data/lang_test_bg/phones/silence.txt
+--> data/lang_test_bg/phones/silence.csl corresponds to data/lang_test_bg/phones/silence.txt
+--> data/lang_test_bg/phones/silence.{txt, int, csl} are OK
+
+Checking data/lang_test_bg/phones/optional_silence.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang_test_bg/phones/optional_silence.txt
+--> data/lang_test_bg/phones/optional_silence.int corresponds to data/lang_test_bg/phones/optional_silence.txt
+--> data/lang_test_bg/phones/optional_silence.csl corresponds to data/lang_test_bg/phones/optional_silence.txt
+--> data/lang_test_bg/phones/optional_silence.{txt, int, csl} are OK
+
+Checking data/lang_test_bg/phones/disambig.{txt, int, csl} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 2 entry/entries in data/lang_test_bg/phones/disambig.txt
+--> data/lang_test_bg/phones/disambig.int corresponds to data/lang_test_bg/phones/disambig.txt
+--> data/lang_test_bg/phones/disambig.csl corresponds to data/lang_test_bg/phones/disambig.txt
+--> data/lang_test_bg/phones/disambig.{txt, int, csl} are OK
+
+Checking data/lang_test_bg/phones/roots.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 48 entry/entries in data/lang_test_bg/phones/roots.txt
+--> data/lang_test_bg/phones/roots.int corresponds to data/lang_test_bg/phones/roots.txt
+--> data/lang_test_bg/phones/roots.{txt, int} are OK
+
+Checking data/lang_test_bg/phones/sets.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 48 entry/entries in data/lang_test_bg/phones/sets.txt
+--> data/lang_test_bg/phones/sets.int corresponds to data/lang_test_bg/phones/sets.txt
+--> data/lang_test_bg/phones/sets.{txt, int} are OK
+
+Checking data/lang_test_bg/phones/extra_questions.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 2 entry/entries in data/lang_test_bg/phones/extra_questions.txt
+--> data/lang_test_bg/phones/extra_questions.int corresponds to data/lang_test_bg/phones/extra_questions.txt
+--> data/lang_test_bg/phones/extra_questions.{txt, int} are OK
+
+Checking optional_silence.txt ...
+--> reading data/lang_test_bg/phones/optional_silence.txt
+--> data/lang_test_bg/phones/optional_silence.txt is OK
+
+Checking disambiguation symbols: #0 and #1
+--> data/lang_test_bg/phones/disambig.txt has "#0" and "#1"
+--> data/lang_test_bg/phones/disambig.txt is OK
+
+Checking topo ...
+
+Checking word-level disambiguation symbols...
+--> data/lang_test_bg/phones/wdisambig.txt exists (newer prepare_lang.sh)
+Checking data/lang_test_bg/oov.{txt, int} ...
+--> text seems to be UTF-8 or ASCII, checking whitespaces
+--> text contains only allowed whitespaces
+--> 1 entry/entries in data/lang_test_bg/oov.txt
+--> data/lang_test_bg/oov.int corresponds to data/lang_test_bg/oov.txt
+--> data/lang_test_bg/oov.{txt, int} are OK
+
+--> data/lang_test_bg/L.fst is olabel sorted
+--> data/lang_test_bg/L_disambig.fst is olabel sorted
+--> data/lang_test_bg/G.fst is ilabel sorted
+--> data/lang_test_bg/G.fst has 50 states
+fstdeterminizestar data/lang_test_bg/G.fst /dev/null 
+--> data/lang_test_bg/G.fst is determinizable
+--> utils/lang/check_g_properties.pl successfully validated data/lang_test_bg/G.fst
+--> utils/lang/check_g_properties.pl succeeded.
+--> Testing determinizability of L_disambig . G
+fsttablecompose data/lang_test_bg/L_disambig.fst data/lang_test_bg/G.fst 
+fstdeterminizestar 
+--> L_disambig . G is determinizable
+--> SUCCESS [validating lang directory data/lang_test_bg]
+Succeeded in formatting data.
+============================================================================
+         MFCC Feature Extration & CMVN for Training and Test set          
+============================================================================
+steps/make_mfcc.sh --cmd queue.pl --mem 4G --nj 10 data/train exp/make_mfcc/train mfcc
+utils/validate_data_dir.sh: Successfully validated data-directory data/train
+steps/make_mfcc.sh: [info]: no segments file exists: assuming wav.scp indexed by utterance.
+queue.pl: Error submitting jobs to queue (return status was 32512)
+queue log file is exp/make_mfcc/train/q/make_mfcc_train.log, command was qsub -v PATH -cwd -S /bin/bash -j y -l arch=*64* -o exp/make_mfcc/train/q/make_mfcc_train.log -l mem_free=4G,ram_free=4G   -t 1:10 /home/rd/caiyueliang/kaldi-trunk/egs/timit/s5/exp/make_mfcc/train/q/make_mfcc_train.sh >>exp/make_mfcc/train/q/make_mfcc_train.log 2>&1
+Output of qsub was: sh: 1: qsub: not found
+
