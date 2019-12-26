@@ -115,17 +115,15 @@ local/thchs-30_decode.sh --nj $n "steps/decode_fmllr.sh" exp/tri4b data/mfcc &
 echo "15 =================================="
 #quick_ali, 训练集数据对齐，使用fMLLR的方式
 steps/align_fmllr.sh --nj $n --cmd "$train_cmd" data/mfcc/train data/lang exp/tri4b exp/tri4b_ali || exit 1;
-
-echo "16 =================================="
 #quick_ali_cv, 测试集数据对齐，使用fMLLR的方式
 steps/align_fmllr.sh --nj $n --cmd "$train_cmd" data/mfcc/dev data/lang exp/tri4b exp/tri4b_ali_cv || exit 1;
 
-echo "17 =================================="
+echo "16 =================================="
 # train dnn model, 训练DNN，包括xent和MPE
 # run_dnn.sh里有train_mpe.sh 用来训练dnn的序列辨别MEP/sMBR。
 local/nnet/run_dnn.sh --stage 0 --nj $n  exp/tri4b exp/tri4b_ali exp/tri4b_ali_cv || exit 1;
 
-echo "18 =================================="
+echo "17 =================================="
 # train dae model 用来实验基于dae的去噪效果
 # python2.6 or above is required for noisy data generation.
 # To speed up the process, pyximport for python is recommeded.
