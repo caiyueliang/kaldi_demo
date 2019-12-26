@@ -19,6 +19,11 @@ data_url=www.openslr.org/resources/33
 
 . ./cmd.sh
 
+nj=10
+
+echo "[RUN] data: "${data}
+echo "[RUN]   nj: "${nj}
+
 echo "[RUN] 1 =================================="
 local/download_and_untar.sh $data $data_url data_aishell || exit 1;
 local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
@@ -49,26 +54,26 @@ echo "[RUN] 5 =================================="
 # want to store MFCC features.
 mfccdir=mfcc
 for x in train dev test; do
-  steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj 10 data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
+  steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
   steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
   utils/fix_data_dir.sh data/${x} || exit 1;
 done
 
 echo "[RUN] 6 =================================="
 # 单音素模型训练
-steps/train_mono.sh --cmd "${train_cmd}" --nj 10 data/train data/lang exp/mono || exit 1;
+steps/train_mono.sh --cmd "${train_cmd}" --nj ${nj} data/train data/lang exp/mono || exit 1;
 
 echo "[RUN] 7 =================================="
 # Monophone decoding，解码并生成WER
 utils/mkgraph.sh data/lang_test exp/mono exp/mono/graph || exit 1;
-steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj 10 \
+steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj ${nj} \
   exp/mono/graph data/dev exp/mono/decode_dev
-steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj 10 \
+steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj ${nj} \
   exp/mono/graph data/test exp/mono/decode_test
 
 echo "[RUN] 8 =================================="
 # Get alignments from monophone system. 数据对齐
-steps/align_si.sh --cmd "$train_cmd" --nj 10 \
+steps/align_si.sh --cmd "$train_cmd" --nj ${nj} \
   data/train data/lang exp/mono exp/mono_ali || exit 1;
 
 echo "[RUN] 9 =================================="
@@ -79,14 +84,14 @@ steps/train_deltas.sh --cmd "$train_cmd" \
 echo "[RUN] 10 =================================="
 # decode tri1，解码并生成WER
 utils/mkgraph.sh data/lang_test exp/tri1 exp/tri1/graph || exit 1;
-steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj 10 \
+steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj ${nj} \
   exp/tri1/graph data/dev exp/tri1/decode_dev
-steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj 10 \
+steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj ${nj} \
   exp/tri1/graph data/test exp/tri1/decode_test
 
 echo "[RUN] 11 =================================="
 # align tri1，数据对齐
-steps/align_si.sh --cmd "$train_cmd" --nj 10 \
+steps/align_si.sh --cmd "$train_cmd" --nj ${nj} \
   data/train data/lang exp/tri1 exp/tri1_ali || exit 1;
 
 echo "[RUN] 12 =================================="
@@ -97,14 +102,14 @@ steps/train_deltas.sh --cmd "$train_cmd" \
 echo "[RUN] 13 =================================="
 # decode tri2，解码并生成WER
 utils/mkgraph.sh data/lang_test exp/tri2 exp/tri2/graph
-steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj 10 \
+steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj ${nj} \
   exp/tri2/graph data/dev exp/tri2/decode_dev
-steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj 10 \
+steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj ${nj} \
   exp/tri2/graph data/test exp/tri2/decode_test
 
 echo "[RUN] 14 =================================="
 # train and decode tri2b [LDA+MLLT]，数据对齐
-steps/align_si.sh --cmd "$train_cmd" --nj 10 \
+steps/align_si.sh --cmd "$train_cmd" --nj ${nj} \
   data/train data/lang exp/tri2 exp/tri2_ali || exit 1;
 
 echo "[RUN] 15 =================================="
@@ -115,16 +120,16 @@ steps/train_lda_mllt.sh --cmd "$train_cmd" \
 echo "[RUN] 16 =================================="
 # decode tri3，解码并生成WER
 utils/mkgraph.sh data/lang_test exp/tri3a exp/tri3a/graph || exit 1;
-steps/decode.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config \
+steps/decode.sh --cmd "$decode_cmd" --nj ${nj} --config conf/decode.config \
   exp/tri3a/graph data/dev exp/tri3a/decode_dev
-steps/decode.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config \
+steps/decode.sh --cmd "$decode_cmd" --nj ${nj} --config conf/decode.config \
   exp/tri3a/graph data/test exp/tri3a/decode_test
 
 echo "[RUN] 17 =================================="
 # 数据对齐，使用fMLLR的方式
 # From now, we start building a more serious system (with SAT), and we'll
 # do the alignment with fMLLR.
-steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 data/train data/lang exp/tri3a exp/tri3a_ali || exit 1;
+steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/train data/lang exp/tri3a exp/tri3a_ali || exit 1;
 
 echo "[RUN] 18 =================================="
 # 训练模型（sat自然语言适应）
@@ -133,12 +138,12 @@ steps/train_sat.sh --cmd "$train_cmd" 2500 20000 data/train data/lang exp/tri3a_
 echo "[RUN] 19 =================================="
 # 解码并生成WER，使用fMLLR的方式
 utils/mkgraph.sh data/lang_test exp/tri4a exp/tri4a/graph
-steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config exp/tri4a/graph data/dev exp/tri4a/decode_dev || exit 1;
-steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config exp/tri4a/graph data/test exp/tri4a/decode_test || exit 1;
+steps/decode_fmllr.sh --cmd "$decode_cmd" --nj ${nj} --config conf/decode.config exp/tri4a/graph data/dev exp/tri4a/decode_dev || exit 1;
+steps/decode_fmllr.sh --cmd "$decode_cmd" --nj ${nj} --config conf/decode.config exp/tri4a/graph data/test exp/tri4a/decode_test || exit 1;
 
 echo "[RUN] 20 =================================="
 # 数据对齐，使用fMLLR的方式
-steps/align_fmllr.sh  --cmd "$train_cmd" --nj 10 data/train data/lang exp/tri4a exp/tri4a_ali || exit 1;
+steps/align_fmllr.sh  --cmd "$train_cmd" --nj ${nj} data/train data/lang exp/tri4a exp/tri4a_ali || exit 1;
 
 echo "[RUN] 21 =================================="
 # 训练更大的模型（sat自然语言适应）
@@ -149,13 +154,13 @@ steps/train_sat.sh --cmd "$train_cmd" \
 echo "[RUN] 22 =================================="
 # 解码并生成WER，使用fMLLR的方式
 utils/mkgraph.sh data/lang_test exp/tri5a exp/tri5a/graph || exit 1;
-steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config exp/tri5a/graph data/dev exp/tri5a/decode_dev || exit 1;
-steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 10 --config conf/decode.config exp/tri5a/graph data/test exp/tri5a/decode_test || exit 1;
+steps/decode_fmllr.sh --cmd "$decode_cmd" --nj ${nj} --config conf/decode.config exp/tri5a/graph data/dev exp/tri5a/decode_dev || exit 1;
+steps/decode_fmllr.sh --cmd "$decode_cmd" --nj ${nj} --config conf/decode.config exp/tri5a/graph data/test exp/tri5a/decode_test || exit 1;
 
 echo "[RUN] 23 =================================="
 # 数据对齐，使用fMLLR的方式
-steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 data/train data/lang exp/tri5a exp/tri5a_ali || exit 1;
-steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 data/dev data/lang exp/tri5a exp/tri5a_ali_cv || exit 1;
+steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/train data/lang exp/tri5a exp/tri5a_ali || exit 1;
+steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/dev data/lang exp/tri5a exp/tri5a_ali_cv || exit 1;
 
 echo "[RUN] 24 =================================="
 # nnet3
