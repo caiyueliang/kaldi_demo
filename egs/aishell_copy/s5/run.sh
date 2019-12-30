@@ -25,16 +25,17 @@ echo "[RUN] data: "${data}
 echo "[RUN]   nj: "${nj}
 
 echo "[RUN] 1 =================================="
-local/download_and_untar.sh $data $data_url data_aishell || exit 1;
-local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
+# local/download_and_untar.sh $data $data_url data_aishell || exit 1;
+# local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
 
 echo "[RUN] 2 =================================="
-# Lexicon Preparation, 词典准备
-local/aishell_prepare_dict.sh $data/resource_aishell || exit 1;
+# # Lexicon Preparation, 词典准备
+# local/aishell_prepare_dict.sh $data/resource_aishell || exit 1;
 
 # Data Preparation, 数据准备
-local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript || exit 1;
+# local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript || exit 1;
 
+echo "[RUN] 2.1 =================================="
 # Phone Sets, questions, L compilation
 utils/prepare_lang.sh --position-dependent-phones false data/local/dict \
     "<SPOKEN_NOISE>" data/local/lang data/lang || exit 1;
