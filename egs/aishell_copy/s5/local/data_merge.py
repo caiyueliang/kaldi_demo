@@ -56,7 +56,8 @@ class DataMerge(object):
         print("[DataMerge][merge_1]  src_dir_2 : ", src_dir_2)
         print("[DataMerge][merge_1] output_dir : ", output_dir)
 
-        file_list = ["cmvn.scp", "feats.scp", "spk2utt", "text", "utt2spk", "wav.scp"]
+        # file_list = ["cmvn.scp", "feats.scp", "spk2utt", "text", "utt2spk", "wav.scp"]
+        file_list = ["feats.scp"]
 
         if os.path.exists(output_dir) is False:
             os.makedirs(output_dir)
