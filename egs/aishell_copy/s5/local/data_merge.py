@@ -65,6 +65,9 @@ class DataMerge(object):
             file_1 = os.path.join(src_dir_1, file)
             file_2 = os.path.join(src_dir_2, file)
             output_file = os.path.join(output_dir, file)
+            print("[DataMerge][merge_1]  file_1 : ", file_1)
+            print("[DataMerge][merge_1]  file_1 : ", file_1)
+            print("[DataMerge][merge_1]  output_file : ", output_file)
 
             if os.path.exists(output_file):
                 os.remove(output_file)
