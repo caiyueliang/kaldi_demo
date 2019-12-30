@@ -35,17 +35,29 @@ class DataMerge(object):
         data_list_1 = self.read_data(in_file_1)
         data_list_2 = self.read_data(in_file_2)
 
+        new_dict = dict()
+
         for data in data_list_1:
-            self.write_data(out_file, data, "a+")
+            data_split = data.split(" ")
+            if data_split[0] not in new_dict.keys():
+                new_dict[data_split[0]] = data
+
         for data in data_list_2:
-            self.write_data(out_file, data, "a+")
+            data_split = data.split(" ")
+            if data_split[0] not in new_dict.keys():
+                new_dict[data_split[0]] = data
+
+        key_list = sorted(new_dict.keys())
+        for key in key_list:
+            self.write_data(out_file, new_dict[key], "a+")
 
     def merge_1(self, src_dir_1, src_dir_2, output_dir):
         print("[DataMerge][merge_1]  src_dir_1 : ", src_dir_1)
         print("[DataMerge][merge_1]  src_dir_2 : ", src_dir_2)
         print("[DataMerge][merge_1] output_dir : ", output_dir)
 
-        file_list = ["cmvn.scp", "feats.scp", "spk2utt", "text", "utt2spk", "wav.scp"]
+        # file_list = ["cmvn.scp", "feats.scp", "spk2utt", "text", "utt2spk", "wav.scp"]
+        file_list = ["feats.scp"]
 
         if os.path.exists(output_dir) is False:
             os.makedirs(output_dir)
@@ -54,6 +66,12 @@ class DataMerge(object):
             file_1 = os.path.join(src_dir_1, file)
             file_2 = os.path.join(src_dir_2, file)
             output_file = os.path.join(output_dir, file)
+            print("[DataMerge][merge_1]  file_1 : ", file_1)
+            print("[DataMerge][merge_1]  file_1 : ", file_1)
+            print("[DataMerge][merge_1]  output_file : ", output_file)
+
+            if os.path.exists(output_file):
+                os.remove(output_file)
 
             self._merge_two_files_into_one(file_1, file_2, output_file)
         return
