@@ -58,8 +58,8 @@ find ${src_trans_dir} -name "*.wav.trn" | sort -u > ${tar_trans_dir}/src_wav.txt
 for file in `cat ${tar_trans_dir}/src_wav.txt`; do
     # echo /home/rd/caiyueliang/data/THCHS-30/data_thchs30/data/D8_999.wav.trn | cut -d '/' -f 9- | cut -d '.' -f -1
     file_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '.' -f -1`
+    # thchs30音频ID格式转换，要格式化，与aishell一致，否则后面正确性检验过不了
     new_file_id=$(name_standard ${file_id})
-    # 要加上前缀BAC009，与aishell一致，否则后面正确性检验过不了
     echo -ne ${new_file_id}'\t' >> ${temp_trans_file}
     cat ${file} | sed -n '1p' >> ${temp_trans_file}
 done
@@ -99,7 +99,7 @@ for dir in dev test train; do
     for file in `cat ${src_wav_dir}/${dir}_wav.txt`; do
         # spk_id=`echo -n /home/rd/caiyueliang/data/THCHS-30/data_thchs30/dev/A13_41.wav | cut -d '/' -f 9- | cut -d '_' -f -1`
         file_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '.' -f -1`
-        # thchs30音频ID格式转换
+        # thchs30音频ID格式转换，要格式化，与aishell一致，否则后面正确性检验过不了
         new_file_id=$(name_standard ${file_id})
         dir_name=$(get_spk_name_standard ${file_id})
 
@@ -107,8 +107,6 @@ for dir in dev test train; do
             echo "[DATA_MERGE] mkdir: "${tar_wav_dir}/${dir}/${dir_name}
             mkdir ${tar_wav_dir}/${dir}/${dir_name}
         fi
-        # 要加上前缀BAC009，与aishell一致，否则后面正确性检验过不了
-        # name_id=`echo -n ${file} | cut -d '/' -f 9-`
         cp -r ${file} ${tar_wav_dir}/${dir}/${dir_name}/${new_file_id}".wav" || exit 1;
     done
     rm -r ${src_wav_dir}/${dir}_wav.txt
