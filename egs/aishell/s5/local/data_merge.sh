@@ -11,8 +11,19 @@ function name_standard {
     # echo "[name_standard] spk_id: "${spk_id}
     wav_id=`echo ${1} | cut -d '_' -f 2-`
     wav_id=`echo ${wav_id} | awk '{printf("W%04d\n",$0)}'`
-    echo "[name_standard] wav_id: "${wav_id}
+    # echo "[name_standard] wav_id: "${wav_id}
     # echo "[name_standard] new name: "${prefix}${spk_id}${wav_id}
+    return ${prefix}${spk_id}${wav_id}
+}
+
+function get_spk_name_standard {
+    # echo "[name_standard] old name: "${1}
+    spk_id=`echo ${1} | cut -d '_' -f -1`
+    char_id=`echo ${spk_id:0:1}`
+    spk_id=`echo ${spk_id:1} | awk '{printf("%04d\n",$0)}'`
+    spk_id=${char_id}${spk_id}
+    # echo "[name_standard] spk_id: "${spk_id}
+    return ${spk_id}
 }
 
 echo "[DATA_MERGE] 0 =================================="
@@ -47,8 +58,9 @@ find ${src_trans_dir} -name "*.wav.trn" | sort -u > ${tar_trans_dir}/src_wav.txt
 for file in `cat ${tar_trans_dir}/src_wav.txt`; do
     # echo /home/rd/caiyueliang/data/THCHS-30/data_thchs30/data/D8_999.wav.trn | cut -d '/' -f 9- | cut -d '.' -f -1
     file_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '.' -f -1`
+    new_file_id=$(name_standard ${file_id})
     # 要加上前缀BAC009，与aishell一致，否则后面正确性检验过不了
-    echo -ne ${prefix}${file_id}'\t' >> ${temp_trans_file}
+    echo -ne ${new_file_id}'\t' >> ${temp_trans_file}
     cat ${file} | sed -n '1p' >> ${temp_trans_file}
 done
 
@@ -86,15 +98,36 @@ for dir in dev test train; do
     find ${src_wav_dir}/${dir} -name "*.wav" | sort -u > ${src_wav_dir}/${dir}_wav.txt
     for file in `cat ${src_wav_dir}/${dir}_wav.txt`; do
         # spk_id=`echo -n /home/rd/caiyueliang/data/THCHS-30/data_thchs30/dev/A13_41.wav | cut -d '/' -f 9- | cut -d '_' -f -1`
-        spk_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '_' -f -1`
+        file_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '.' -f -1`
+        # thchs30音频ID格式转换
+        new_file_id=$(name_standard ${file_id})
+        dir_name=$(get_spk_name_standard ${file_id})
 
-        if [ ! -d ${tar_wav_dir}/${dir}/${spk_id} ]; then
-            echo "[DATA_MERGE] mkdir: "${tar_wav_dir}/${dir}/${spk_id}
-            mkdir ${tar_wav_dir}/${dir}/${spk_id}
+        if [ ! -d ${tar_wav_dir}/${dir}/${dir_name} ]; then
+            echo "[DATA_MERGE] mkdir: "${tar_wav_dir}/${dir}/${dir_name}
+            mkdir ${tar_wav_dir}/${dir}/${dir_name}
         fi
         # 要加上前缀BAC009，与aishell一致，否则后面正确性检验过不了
-        name_id=`echo -n ${file} | cut -d '/' -f 9-`
-        cp -r ${file} ${tar_wav_dir}/${dir}/${spk_id}/${prefix}${name_id} || exit 1;
+        # name_id=`echo -n ${file} | cut -d '/' -f 9-`
+        cp -r ${file} ${tar_wav_dir}/${dir}/${dir_name}/${new_file_id}".wav" || exit 1;
     done
     rm -r ${src_wav_dir}/${dir}_wav.txt
 done
+
+#for dir in dev test train; do
+#    # find /home/rd/caiyueliang/data/THCHS-30/data_thchs30/dev -name "*.wav"
+#    find ${src_wav_dir}/${dir} -name "*.wav" | sort -u > ${src_wav_dir}/${dir}_wav.txt
+#    for file in `cat ${src_wav_dir}/${dir}_wav.txt`; do
+#        # spk_id=`echo -n /home/rd/caiyueliang/data/THCHS-30/data_thchs30/dev/A13_41.wav | cut -d '/' -f 9- | cut -d '_' -f -1`
+#        spk_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '_' -f -1`
+#
+#        if [ ! -d ${tar_wav_dir}/${dir}/${spk_id} ]; then
+#            echo "[DATA_MERGE] mkdir: "${tar_wav_dir}/${dir}/${spk_id}
+#            mkdir ${tar_wav_dir}/${dir}/${spk_id}
+#        fi
+#        # 要加上前缀BAC009，与aishell一致，否则后面正确性检验过不了
+#        name_id=`echo -n ${file} | cut -d '/' -f 9-`
+#        cp -r ${file} ${tar_wav_dir}/${dir}/${spk_id}/${prefix}${name_id} || exit 1;
+#    done
+#    rm -r ${src_wav_dir}/${dir}_wav.txt
+#done
