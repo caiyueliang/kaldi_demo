@@ -10,10 +10,12 @@ echo "[DATA_MERGE] 1 =================================="
 # 生成 THCHS-30 的 音频ID和对应的文本标签 的数据
 src_trans_dir=${src_dir}/data_thchs30/data
 tar_trans_dir=${tar_dir}/data_aishell/transcript_merge
+src_trans_file=${tar_dir}/data_aishell/transcript/aishell_transcript_v0.8.txt
 temp_trans_file=${tar_trans_dir}/thchs30_transcript_v1.0.txt
 tar_trans_file=${tar_trans_dir}/aishell_transcript_v0.8.txt
 echo "[DATA_MERGE]   src_trans_dir: "${src_trans_dir}
 echo "[DATA_MERGE]   tar_trans_dir: "${tar_trans_dir}
+echo "[DATA_MERGE]  src_trans_file: "${src_trans_file}
 echo "[DATA_MERGE] temp_trans_file: "${temp_trans_file}
 echo "[DATA_MERGE]  tar_trans_file: "${tar_trans_file}
 
@@ -29,10 +31,11 @@ for file in `cat ${tar_trans_dir}/src_wav.txt`; do
     cat ${file} | sed -n '1p' >> ${temp_trans_file}
 done
 
-cp -r ${tar_dir}/data_aishell/transcript/aishell_transcript_v0.8.txt ${tar_trans_dir}/aishell_temp.txt || exit 1;
-cat ${temp_trans_file} >> ${tar_trans_dir}/aishell_temp.txt
-cat ${tar_trans_dir}/aishell_temp.txt | sort -u > ${tar_trans_file}
-rm -r ${tar_trans_dir}/aishell_temp.txt
+cat ${src_trans_file} ${temp_trans_file} | sort -u > ${tar_trans_file} || exit 1;
+#cp -r ${tar_dir}/data_aishell/transcript/aishell_transcript_v0.8.txt ${tar_trans_dir}/aishell_temp.txt || exit 1;
+#cat ${temp_trans_file} >> ${tar_trans_dir}/aishell_temp.txt
+#cat ${tar_trans_dir}/aishell_temp.txt | sort -u > ${tar_trans_file}
+#rm -r ${tar_trans_dir}/aishell_temp.txt
 
 echo "[DATA_MERGE] 2 =================================="
 # 生成 lexicon.txt
@@ -50,10 +53,11 @@ echo "[DATA_MERGE]      tar_lexicon: "${tar_lexicon}
 rm -rf ${out_resource_dir}
 mkdir ${out_resource_dir}
 
-cp -r ${src_lexicon} ${out_resource_dir}/lexicon_temp.txt || exit 1;
-cat ${tar_lexicon} >> ${out_resource_dir}/lexicon_temp.txt || exit 1;
-cat ${out_resource_dir}/lexicon_temp.txt | sort -u > ${out_lexicon}
-rm -r ${out_resource_dir}/lexicon_temp.txt
+cat ${src_lexicon} ${tar_lexicon} | grep -v -a '<s>' | grep -v -a '</s>' | sort -u > ${out_lexicon} || exit 1;
+#cp -r ${src_lexicon} ${out_resource_dir}/lexicon_temp.txt || exit 1;
+#cat ${tar_lexicon} >> ${out_resource_dir}/lexicon_temp.txt || exit 1;
+#cat ${out_resource_dir}/lexicon_temp.txt | sort -u > ${out_lexicon}
+#rm -r ${out_resource_dir}/lexicon_temp.txt
 
 echo "[DATA_MERGE] 3 =================================="
 # 拷贝 音频文件
