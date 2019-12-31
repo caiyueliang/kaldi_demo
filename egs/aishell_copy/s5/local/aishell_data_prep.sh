@@ -24,12 +24,21 @@ mkdir -p $dev_dir
 mkdir -p $test_dir
 mkdir -p $tmp_dir
 
+echo "[PREP] aishell_audio_dir: "${aishell_audio_dir}
+echo "[PREP]      aishell_text: "${aishell_text}
+echo "[PREP]         train_dir: "${train_dir}
+echo "[PREP]           dev_dir: "${dev_dir}
+echo "[PREP]          test_dir: "${test_dir}
+echo "[PREP]           tmp_dir: "${tmp_dir}
+
+echo "[PREP] 1 =================================="
 # data directory check
 if [ ! -d $aishell_audio_dir ] || [ ! -f $aishell_text ]; then
   echo "Error: $0 requires two directory arguments"
   exit 1;
 fi
 
+echo "[PREP] 2 =================================="
 # find wav audio file for train, dev and test resp.
 find $aishell_audio_dir -iname "*.wav" > $tmp_dir/wav.flist
 n=`cat $tmp_dir/wav.flist | wc -l`
@@ -42,6 +51,7 @@ grep -i "wav/test" $tmp_dir/wav.flist > $test_dir/wav.flist || exit 1;
 
 rm -r $tmp_dir
 
+echo "[PREP] 3 =================================="
 # Transcriptions preparation
 for dir in $train_dir $dev_dir $test_dir; do
   echo Preparing $dir transcriptions
@@ -56,6 +66,7 @@ for dir in $train_dir $dev_dir $test_dir; do
   utils/utt2spk_to_spk2utt.pl $dir/utt2spk > $dir/spk2utt
 done
 
+echo "[PREP] 4 =================================="
 mkdir -p data/train data/dev data/test
 
 for f in spk2utt utt2spk wav.scp text; do
