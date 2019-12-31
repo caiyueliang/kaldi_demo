@@ -63,7 +63,8 @@ for dir in $train_dir $dev_dir $test_dir; do
   utils/filter_scp.pl -f 1 $dir/utt.list $dir/utt2spk_all | sort -u > $dir/utt2spk
   utils/filter_scp.pl -f 1 $dir/utt.list $dir/wav.scp_all | sort -u > $dir/wav.scp
   sort -u $dir/transcripts.txt > $dir/text
-  utils/utt2spk_to_spk2utt.pl $dir/utt2spk > $dir/spk2utt
+  # utils/utt2spk_to_spk2utt.pl $dir/utt2spk > $dir/spk2utt
+  utils/utt2spk_to_spk2utt.pl $dir/utt2spk | sort -u > $dir/spk2utt
 done
 
 echo "[PREP] 4 =================================="
