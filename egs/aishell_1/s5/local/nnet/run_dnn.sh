@@ -32,7 +32,7 @@ echo "[run_dnn.sh] 2 =================================="
 #  for x in train dev test; do
 #    echo "producing fbank for $x"
 #    #fbank generation
-#    steps/make_fbank.sh --nj $nj --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
+#    steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
 #    #ompute cmvn
 #    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
 #  done
@@ -43,6 +43,7 @@ echo "[run_dnn.sh] 2 =================================="
 
 # ======================================================================================================================
 echo "[FSMN] 2 =================================="
+# 和上面的相同，不需要，先注释掉
 ###Make fbank features
 #if [ $stage -le 1 ]; then
 #    mkdir -p data_fbank
@@ -76,10 +77,11 @@ learn_rate=0.00001
 max_iters=20
 start_half_lr=10
 momentum=0.9
-# dnn_model=DFSMN_S
-dnn_model=DFSMN_L
+dnn_model=DFSMN_S
+# dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
-data_fbk=data_fbank
+# data_fbk=data_fbank
+data_fbk=data/fbank
 acwt=0.08
 
 echo "[FSMN][CE-training]           dir: "${dir}
@@ -93,62 +95,62 @@ echo "[FSMN][CE-training]      data_fbk: "${data_fbk}
 echo "[FSMN][CE-training]          acwt: "${acwt}
 
 echo "[FSMN] 5 =================================="
-#if [ ${stage} -le 3 ]; then
-#     if [ ! -d "${dir}" ]; then
-#         mkdir ${dir}
-#         mkdir ${dir}/decode_test_word
-#         mkdir ${dir}/decode_test_word/log
-#         mkdir ${dir}/decode_test_phone
-#         mkdir ${dir}/decode_test_phone/log
-#     fi
-#
-#    proto=local/nnet/${dnn_model}.proto
-#    echo "[FSMN][CE-training]    proto: "${proto}
-#
-#    ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
-#    echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
-#    # new_num_pdf=`gmm-info ./exp/tri6b_cleaned/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-#    new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-#    echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
-#    new_proto=${proto}.$new_num_pdf
-#    sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
-#
-#    # 执行脚本train_faster.sh
-#    ${cuda_cmd} ${dir}/train_faster_nnet.log \
-#        steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
-#        --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
-#        --train-tool "nnet-train-fsmn-streams" \
-#        --feat-type plain --splice 1 \
-#        --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
-#        --train-tool-opts "--minibatch-size=4096" \
-#        ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
-#        # $data_fbk/train_960_cleaned $data_fbk/dev_clean data/lang exp/tri6b_cleaned_ali_train_960_cleaned exp/tri6b_cleaned_ali_dev_clean $dir
-#
-#    # # 执行脚本train.sh
-#    # ${cuda_cmd} ${dir}/train_nnet.log \
-#    #     steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
-#    #     --max_iters ${max_iters} --momentum ${momentum} \
-#    #     --train-tool "nnet-train-fsmn-streams" \
-#    #     --feat-type plain --splice 1 \
-#    #     --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
-#    #     --train-tool-opts "--minibatch-size=4096" \
-#    #     ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
-#
-#    # Decode
-#    echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
-#    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
-#        ${gmmdir}/graph ${data_fbk}/test ${dir}/decode_test_word || exit 1;
-#
-#    # echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_phone"
-#    # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
-#    #     ${gmmdir}/graph_phone ${data_fbk}/test_phone ${dir}/decode_test_phone || exit 1;
-#
-# 	for x in ${dir}/decode_*;
-# 	do
-# 	    echo "[FSMN][CE-training][best_wer] dir: "${x}
-#        grep WER ${x}/wer_* | utils/best_wer.sh
-# 	done
-#fi
+if [ ${stage} -le 3 ]; then
+     if [ ! -d "${dir}" ]; then
+         mkdir ${dir}
+         mkdir ${dir}/decode_test_word
+         mkdir ${dir}/decode_test_word/log
+         mkdir ${dir}/decode_test_phone
+         mkdir ${dir}/decode_test_phone/log
+     fi
+
+    proto=local/nnet/${dnn_model}.proto
+    echo "[FSMN][CE-training]    proto: "${proto}
+
+    ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
+    echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
+    # new_num_pdf=`gmm-info ./exp/tri6b_cleaned/final.mdl |grep "number of pdfs" |awk '{print $4}'`
+    new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
+    echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
+    new_proto=${proto}.$new_num_pdf
+    sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
+
+    # 执行脚本train_faster.sh
+    ${cuda_cmd} ${dir}/train_faster_nnet.log \
+        steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+        --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
+        --train-tool "nnet-train-fsmn-streams" \
+        --feat-type plain --splice 1 \
+        --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
+        --train-tool-opts "--minibatch-size=4096" \
+        ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+        # $data_fbk/train_960_cleaned $data_fbk/dev_clean data/lang exp/tri6b_cleaned_ali_train_960_cleaned exp/tri6b_cleaned_ali_dev_clean $dir
+
+    # # 执行脚本train.sh
+    # ${cuda_cmd} ${dir}/train_nnet.log \
+    #     steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+    #     --max_iters ${max_iters} --momentum ${momentum} \
+    #     --train-tool "nnet-train-fsmn-streams" \
+    #     --feat-type plain --splice 1 \
+    #     --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
+    #     --train-tool-opts "--minibatch-size=4096" \
+    #     ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+
+    # Decode
+    echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
+    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
+        ${gmmdir}/graph ${data_fbk}/test ${dir}/decode_test_word || exit 1;
+
+    # echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_phone"
+    # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
+    #     ${gmmdir}/graph_phone ${data_fbk}/test_phone ${dir}/decode_test_phone || exit 1;
+
+ 	for x in ${dir}/decode_*;
+ 	do
+ 	    echo "[FSMN][CE-training][best_wer] dir: "${x}
+        grep WER ${x}/wer_* | utils/best_wer.sh
+ 	done
+fi
 
 ####Decode
 echo "[FSMN] 6 =================================="
