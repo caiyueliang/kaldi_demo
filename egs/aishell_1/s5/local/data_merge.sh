@@ -97,7 +97,10 @@ echo "[DATA_MERGE]      tar_lexicon: "${tar_lexicon}
 rm -rf ${out_resource_dir}
 mkdir ${out_resource_dir}
 
-cat ${src_lexicon} ${tar_lexicon} | grep -v -a '<s>' | grep -v -a '</s>' | sort -u > ${out_lexicon} || exit 1;
+# 对字典去重并排序
+# cat ${tar_lexicon} ${src_lexicon} | grep -v -a '<s>' | grep -v -a '</s>' | sort -u > ${out_lexicon} || exit 1;
+# 对字典去重但不排序，且AISHELL的字典放在前面
+cat ${tar_lexicon} ${src_lexicon} | grep -v -a '<s>' | grep -v -a '</s>' | awk '!a[$0]++' > ${out_lexicon} || exit 1;
 
 echo "[DATA_MERGE] 3 =================================="
 # 拷贝 音频文件
