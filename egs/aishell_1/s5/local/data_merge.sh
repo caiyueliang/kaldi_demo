@@ -1,39 +1,33 @@
 #!/bin/bash
+# AISHELL 音频ID格式为: BAC009S0724W0345 = BAC009 S0724 W0345
+# THCHS-30音频ID格式为: C4_715
+# 两者要保持一致：C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
+prefix=BAC009
 
-# 格式转换: C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
+# 格式化音频ID: C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
 function name_standard {
     prefix=BAC009
-    # echo "[name_standard] old name: "${1}
     spk_id=`echo ${1} | cut -d '_' -f -1`
     char_id=`echo ${spk_id:0:1}`
     spk_id=`echo ${spk_id:1} | awk '{printf("%04d\n",$0)}'`
     spk_id=${char_id}${spk_id}
-    # echo "[name_standard] spk_id: "${spk_id}
     wav_id=`echo ${1} | cut -d '_' -f 2-`
     wav_id=`echo ${wav_id} | awk '{printf("W%04d\n",$0)}'`
-    # echo "[name_standard] wav_id: "${wav_id}
-    # echo "[name_standard] new name: "${prefix}${spk_id}${wav_id}
     return ${prefix}${spk_id}${wav_id}
 }
 
+# 格式化说话人ID：C4 --> C0004
 function get_spk_name_standard {
-    # echo "[name_standard] old name: "${1}
     spk_id=`echo ${1} | cut -d '_' -f -1`
     char_id=`echo ${spk_id:0:1}`
     spk_id=`echo ${spk_id:1} | awk '{printf("%04d\n",$0)}'`
     spk_id=${char_id}${spk_id}
-    # echo "[name_standard] spk_id: "${spk_id}
     return ${spk_id}
 }
 
 echo "[DATA_MERGE] 0 =================================="
 src_dir=/home/rd/caiyueliang/data/THCHS-30
 tar_dir=/home/rd/caiyueliang/data/AISHELL
-# AISHELL 音频ID格式为: BAC009S0724W0345 = BAC009 S0724 W0345
-# THCHS-30音频ID格式为: C4_715
-# 两者要保持一致：C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
-prefix=BAC009
-
 echo "[DATA_MERGE] src_dir: "${src_dir}
 echo "[DATA_MERGE] tar_dir: "${tar_dir}
 
@@ -145,21 +139,3 @@ for dir in dev test train; do
     done
     rm -r ${src_wav_dir}/${dir}_wav.txt
 done
-
-#for dir in dev test train; do
-#    # find /home/rd/caiyueliang/data/THCHS-30/data_thchs30/dev -name "*.wav"
-#    find ${src_wav_dir}/${dir} -name "*.wav" | sort -u > ${src_wav_dir}/${dir}_wav.txt
-#    for file in `cat ${src_wav_dir}/${dir}_wav.txt`; do
-#        # spk_id=`echo -n /home/rd/caiyueliang/data/THCHS-30/data_thchs30/dev/A13_41.wav | cut -d '/' -f 9- | cut -d '_' -f -1`
-#        spk_id=`echo -n ${file} | cut -d '/' -f 9- | cut -d '_' -f -1`
-#
-#        if [ ! -d ${tar_wav_dir}/${dir}/${spk_id} ]; then
-#            echo "[DATA_MERGE] mkdir: "${tar_wav_dir}/${dir}/${spk_id}
-#            mkdir ${tar_wav_dir}/${dir}/${spk_id}
-#        fi
-#        # 要加上前缀BAC009，与aishell一致，否则后面正确性检验过不了
-#        name_id=`echo -n ${file} | cut -d '/' -f 9-`
-#        cp -r ${file} ${tar_wav_dir}/${dir}/${spk_id}/${prefix}${name_id} || exit 1;
-#    done
-#    rm -r ${src_wav_dir}/${dir}_wav.txt
-#done
