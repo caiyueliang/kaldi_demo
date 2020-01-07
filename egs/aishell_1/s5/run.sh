@@ -30,12 +30,20 @@ echo "[RUN] 1 =================================="
 
 echo "[RUN] 2 =================================="
 # Lexicon Preparation, 词典准备
-# local/aishell_prepare_dict.sh $data/resource_aishell || exit 1;
-local/aishell_prepare_dict.sh $data/resource_aishell_merge || exit 1;
+# 仅aishell
+# local/aishell_prepare_dict.sh ${data}/resource_aishell || exit 1;
+# aishell + thchs30
+# local/aishell_prepare_dict.sh ${data}/resource_aishell_merge || exit 1;
+# aishell + aidatatang
+local/aishell_prepare_dict.sh ${data}/resource_aidatatang_merge || exit 1;
 
 # Data Preparation, 数据准备
-# local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript || exit 1;
-local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript_merge || exit 1;
+# 仅aishell
+# local/aishell_data_prep.sh ${data}/data_aishell/wav $data/data_aishell/transcript || exit 1;
+# aishell + thchs30
+# local/aishell_data_prep.sh ${data}/data_aishell/wav $data/data_aishell/transcript_merge || exit 1;
+# aishell + aidatatang
+local/aishell_data_prep.sh ${data}/data_aishell/wav $data/data_aishell/transcript_merge || exit 1;
 
 # ======================================================================================================================
 # Phone Sets, questions, L compilation
