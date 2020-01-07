@@ -1,7 +1,10 @@
 #!/bin/bash
-# AISHELL 音频ID格式为: BAC009S0724W0345 = BAC009 S0724 W0345
-# THCHS-30音频ID格式为: C4_715
-# 两者要保持一致：C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
+# Description :  data merge script
+# Author :       caiyueliang
+# Date :         2019/12/27
+# Detail:        AISHELL 音频ID格式为: BAC009S0724W0345 = BAC009 S0724 W0345
+#                THCHS-30音频ID格式为: C4_715
+#                两者要保持一致：C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
 prefix=BAC009
 
 # 格式化音频ID: C4_715 --> BAC009C0004W0715 = BAC009 C0004 W0715
