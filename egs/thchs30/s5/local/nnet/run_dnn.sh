@@ -101,7 +101,7 @@ if [ ${stage} -le 3 ]; then
     new_proto=${proto}.$new_num_pdf
     sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
 
-    if [ -z ${nnet_init} ]; then
+    if [ ! -z ${nnet_init} ]; then
         # 执行脚本train_faster.sh，使用预训练模型进行训练
         echo "[FSMN][CE-training] 使用预训练模型进行训练 : "${nnet_init}
         ${cuda_cmd} ${dir}/train_faster_nnet.log \
@@ -123,6 +123,7 @@ if [ ${stage} -le 3 ]; then
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
             --train-tool-opts "--minibatch-size=4096" \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+    fi
 
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
