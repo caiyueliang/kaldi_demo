@@ -43,20 +43,6 @@ echo "[run_dnn.sh] 2 =================================="
  fi
 
 # ======================================================================================================================
-echo "[FSMN] 2 =================================="
-# ##Make fbank features
-# if [ $stage -le 1 ]; then
-#     mkdir -p data_fbank
-#
-#     # for x in train_960_cleaned test_other test_clean dev_other dev_clean; do
-#     for x in train dev test; do
-#         fbankdir=fbank/$x
-#         cp -r data/$x data_fbank/$x
-#         steps/make_fbank.sh --nj $nj --cmd "$train_cmd"  --fbank-config conf/fbank.conf data_fbank/$x exp/make_fbank/$x $fbankdir
-#         steps/compute_cmvn_stats.sh data_fbank/$x exp/make_fbank/$x $fbankdir
-#     done
-# fi
-
 #####CE-training
 echo "[FSMN] 4 =================================="
 learn_rate=0.00001
@@ -111,6 +97,7 @@ if [ ${stage} -le 3 ]; then
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
             --train-tool-opts "--minibatch-size=4096" \
+            --nnet_init ${nnet_init} \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     else
         echo "[FSMN][CE-training] 不使用预训练模型进行训练 ... "
