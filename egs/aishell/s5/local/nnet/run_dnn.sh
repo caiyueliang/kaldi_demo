@@ -24,7 +24,7 @@ echo "[run_dnn.sh]    alidir: "${alidir}
 echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
 echo "[run_dnn.sh] nnet_init: "${nnet_init}
 
-# ======================================================================================================================
+## ======================================================================================================================
 echo "[run_dnn.sh] 2 =================================="
 #generate fbanks  生成FBank特征，是40维FBank
 if [ $stage -le 0 ]; then
@@ -79,14 +79,20 @@ if [ ${stage} -le 3 ]; then
 
     proto=local/nnet/${dnn_model}.proto
     echo "[FSMN][CE-training]    proto: "${proto}
-
     ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
     echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
-    # new_num_pdf=`gmm-info ./exp/tri6b_cleaned/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-    new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-    echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
-    new_proto=${proto}.$new_num_pdf
-    sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
+
+    # ======================================================================
+    # proto使用默认的
+    new_proto=${proto}
+    echo "[FSMN][CE-training] new proto: "${new_proto}
+    # ======================================================================
+    # # proto使用自动获取的
+    # new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
+    # echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
+    # new_proto=${proto}.${new_num_pdf}
+    # sed -r "s/"${ori_num_pdf}"/"${new_num_pdf}"/g" ${proto} > ${new_proto}
+    # ======================================================================
 
     if [ ! -z ${nnet_init} ]; then
         # 执行脚本train_faster.sh，使用预训练模型进行训练
@@ -112,7 +118,7 @@ if [ ${stage} -le 3 ]; then
             --train-tool-opts "--minibatch-size=4096" \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     fi
-    
+
     # # 执行脚本train.sh
     # ${cuda_cmd} ${dir}/train_nnet.log \
     #     steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
