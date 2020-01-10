@@ -14,17 +14,18 @@ n=8      #parallel jobs
 thchs=/home/rd/caiyueliang/data/THCHS-30
 
 #you can obtain the database by uncommting the following lines
-#[ -d $thchs ] || mkdir -p $thchs  || exit 1
-#echo "downloading THCHS30 at $thchs ..."
-#local/download_and_untar.sh $thchs  http://www.openslr.org/resources/18 data_thchs30  || exit 1
-#local/download_and_untar.sh $thchs  http://www.openslr.org/resources/18 resource      || exit 1
-#local/download_and_untar.sh $thchs  http://www.openslr.org/resources/18 test-noise    || exit 1
+[ -d $thchs ] || mkdir -p $thchs  || exit 1
+echo "downloading THCHS30 at $thchs ..."
+local/download_and_untar.sh $thchs  http://www.openslr.org/resources/18 data_thchs30  || exit 1
+local/download_and_untar.sh $thchs  http://www.openslr.org/resources/18 resource      || exit 1
+local/download_and_untar.sh $thchs  http://www.openslr.org/resources/18 test-noise    || exit 1
 
 echo " 2 =================================="
 #data preparation, 数据准备
 #generate text, wav.scp, utt2pk, spk2utt
 local/thchs-30_data_prep.sh $H $thchs/data_thchs30 || exit 1;
 
+# ======================================================================================================================
 echo " 3 =================================="
 #produce MFCC features, 生成 MFCC 特征
 rm -rf data/mfcc && mkdir -p data/mfcc &&  cp -R data/{train,dev,test,test_phone} data/mfcc || exit 1;
@@ -46,7 +47,7 @@ echo " 4 =================================="
   cd $H; mkdir -p data/{dict,lang,graph} && \
   cp $thchs/resource/dict/{extra_questions.txt,nonsilence_phones.txt,optional_silence.txt,silence_phones.txt} data/dict && \
   cat $thchs/resource/dict/lexicon.txt $thchs/data_thchs30/lm_word/lexicon.txt | \
-  grep -v -a '<s>' | grep -v -a '</s>' | sort -u > data/dict/lexicon.txt || exit 1;
+      grep -v -a '<s>' | grep -v -a '</s>' | sort -u > data/dict/lexicon.txt || exit 1;
   utils/prepare_lang.sh --position_dependent_phones false data/dict "<SPOKEN_NOISE>" data/local/lang data/lang || exit 1;
   gzip -c $thchs/data_thchs30/lm_word/word.3gram.lm > data/graph/word.3gram.lm.gz || exit 1;
   utils/format_lm.sh data/lang data/graph/word.3gram.lm.gz $thchs/data_thchs30/lm_word/lexicon.txt data/graph/lang || exit 1;
@@ -66,6 +67,7 @@ echo " 5 =================================="
     data/graph_phone/lang  || exit 1;
 )
 
+# ======================================================================================================================
 echo " 6 =================================="
 #monophone, 用来训练单音素隐马尔科夫模型，一共进行40次迭代，每两次迭代进行一次对齐操作
 steps/train_mono.sh --boost-silence 1.25 --nj $n --cmd "$train_cmd" data/mfcc/train data/lang exp/mono || exit 1;

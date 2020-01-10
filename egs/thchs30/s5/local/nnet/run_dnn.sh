@@ -26,21 +26,21 @@ echo "[run_dnn.sh] nnet_init: "${nnet_init}
 
 # ======================================================================================================================
 echo "[run_dnn.sh] 2 =================================="
-# #generate fbanks  生成FBank特征，是40维FBank
-# if [ $stage -le 0 ]; then
-#   echo "DNN training: stage 0: feature generation"
-#   rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
-#   for x in train dev test; do
-#     echo "producing fbank for $x"
-#     #fbank generation
-#     steps/make_fbank.sh --nj $nj --cmd "$train_cmd" data/fbank/$x exp/make_fbank/$x fbank/$x || exit 1
-#     #ompute cmvn
-#     steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
-#   done
-#
-#   echo "producing test_fbank_phone"
-#   cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
-# fi
+ #generate fbanks  生成FBank特征，是40维FBank
+ if [ $stage -le 0 ]; then
+   echo "DNN training: stage 0: feature generation"
+   rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
+   for x in train dev test; do
+     echo "producing fbank for $x"
+     #fbank generation
+     steps/make_fbank.sh --nj $nj --cmd "$train_cmd" data/fbank/$x exp/make_fbank/$x fbank/$x || exit 1
+     #ompute cmvn
+     steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
+   done
+
+   echo "producing test_fbank_phone"
+   cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
+ fi
 
 # ======================================================================================================================
 echo "[FSMN] 2 =================================="
