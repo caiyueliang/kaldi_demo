@@ -12,6 +12,7 @@ echo "[run_dnn.sh] 1 =================================="
 
 stage=0
 nj=8
+nnet_init=
 
 . utils/parse_options.sh || exit 1;
 
@@ -21,28 +22,30 @@ alidir_cv=$3
 echo "[run_dnn.sh]    gmmdir: "${gmmdir}
 echo "[run_dnn.sh]    alidir: "${alidir}
 echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
+echo "[run_dnn.sh] nnet_init: "${nnet_init}
 
 # ======================================================================================================================
 echo "[run_dnn.sh] 2 =================================="
-##generate fbanks  生成FBank特征，是40维FBank
-#if [ $stage -le 0 ]; then
-#  echo "DNN training: stage 0: feature generation"
-#  # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
-#  rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
-#  for x in train dev test; do
-#    echo "producing fbank for $x"
-#    #fbank generation
-#    steps/make_fbank.sh --nj $nj --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
-#    #ompute cmvn
-#    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
-#  done
-#
-#  echo "producing test_fbank_phone"
-#  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
-#fi
+#generate fbanks  生成FBank特征，是40维FBank
+if [ $stage -le 0 ]; then
+  echo "DNN training: stage 0: feature generation"
+  # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
+  rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
+  for x in train dev test; do
+    echo "producing fbank for $x"
+    #fbank generation
+    steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
+    #ompute cmvn
+    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
+  done
+
+  echo "producing test_fbank_phone"
+  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
+fi
 
 # ======================================================================================================================
 echo "[FSMN] 2 =================================="
+# 和上面的相同，不需要，先注释掉
 ###Make fbank features
 #if [ $stage -le 1 ]; then
 #    mkdir -p data_fbank
@@ -56,20 +59,6 @@ echo "[FSMN] 2 =================================="
 #    done
 #fi
 
-# ======================================================================================================================
-# run_fsmn_ivector.sh的部分
-# ###############
-# echo "[FSMN] 3 =================================="
-# # 数据对齐，是否需要？先注释掉
-# if [ $stage -le 2 ]; then
-#   steps/align_fmllr.sh --nj 30 --cmd "$train_cmd" \
-#     data/train_960_cleaned data/lang exp/tri6b_cleaned exp/tri6b_cleaned_ali_train_960_cleaned
-#   steps/align_fmllr.sh --nj 10 --cmd "$train_cmd" \
-#     data/dev_clean data/lang exp/tri6b_cleaned exp/tri6b_cleaned_ali_dev_clean
-#   # steps/align_fmllr.sh --nj 10 --cmd "$train_cmd" \
-#   #   data/dev_other data/lang exp/tri6b_cleaned exp/tri6b_cleaned_ali_dev_other
-# fi
-
 #####CE-training
 echo "[FSMN] 4 =================================="
 learn_rate=0.00001
@@ -79,7 +68,8 @@ momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
-data_fbk=data_fbank
+# data_fbk=data_fbank
+data_fbk=data/fbank
 acwt=0.08
 
 echo "[FSMN][CE-training]           dir: "${dir}
@@ -113,17 +103,30 @@ if [ ${stage} -le 3 ]; then
     new_proto=${proto}.$new_num_pdf
     sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
 
-    # 执行脚本train_faster.sh
-    ${cuda_cmd} ${dir}/train_faster_nnet.log \
-        steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
-        --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
-        --train-tool "nnet-train-fsmn-streams" \
-        --feat-type plain --splice 1 \
-        --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
-        --train-tool-opts "--minibatch-size=4096" \
-        ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
-        # $data_fbk/train_960_cleaned $data_fbk/dev_clean data/lang exp/tri6b_cleaned_ali_train_960_cleaned exp/tri6b_cleaned_ali_dev_clean $dir
-
+    if [ ! -z ${nnet_init} ]; then
+        # 执行脚本train_faster.sh，使用预训练模型进行训练
+        echo "[FSMN][CE-training] 使用预训练模型进行训练 : "${nnet_init}
+        ${cuda_cmd} ${dir}/train_faster_nnet.log \
+            steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+            --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
+            --train-tool "nnet-train-fsmn-streams" \
+            --feat-type plain --splice 1 \
+            --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
+            --train-tool-opts "--minibatch-size=4096" \
+            ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+    else
+        echo "[FSMN][CE-training] 不使用预训练模型进行训练 ... "
+        # 执行脚本train_faster.sh
+        ${cuda_cmd} ${dir}/train_faster_nnet.log \
+            steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+            --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
+            --train-tool "nnet-train-fsmn-streams" \
+            --feat-type plain --splice 1 \
+            --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
+            --train-tool-opts "--minibatch-size=4096" \
+            ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+    fi
+    
     # # 执行脚本train.sh
     # ${cuda_cmd} ${dir}/train_nnet.log \
     #     steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
@@ -184,8 +187,7 @@ echo "[FSMN] 6 =================================="
 echo "[FSMN] 7 =================================="
 # gen ali & lat for smbr
 if [ ${stage} -le 5 ]; then
-    steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" \
-        ${data_fbk}/train data/lang ${dir} ${dir}_ali
+    steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train data/lang ${dir} ${dir}_ali
     steps/nnet/make_denlats.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
         ${data_fbk}/train data/lang ${dir} ${dir}_denlats
 fi
