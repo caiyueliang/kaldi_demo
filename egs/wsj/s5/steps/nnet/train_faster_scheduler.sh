@@ -63,6 +63,14 @@ labels_tr=$4
 labels_cv=$5
 dir=$6
 
+echo "[train_faster_scheduler]  mlp_init: "${mlp_init}
+echo "[train_faster_scheduler]  feats_tr: "${feats_tr}
+echo "[train_faster_scheduler]  feats_cv: "${feats_cv}
+echo "[train_faster_scheduler] labels_tr: "${labels_tr}
+echo "[train_faster_scheduler] labels_cv: "${labels_cv}
+echo "[train_faster_scheduler]       dir: "${dir}
+
+
 [ ! -d $dir ] && mkdir $dir
 [ ! -d $dir/log ] && mkdir $dir/log
 [ ! -d $dir/nnet ] && mkdir $dir/nnet

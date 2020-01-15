@@ -158,20 +158,28 @@ if [ ! -z "$labels" ]; then
   labels_tr="$labels"
   labels_cv="$labels"
 else
-  echo "Using PDF targets from dirs '$alidir' '$alidir_cv'"
+  echo "[TrainFaster] Using PDF targets from dirs '$alidir' '$alidir_cv'"
   # training targets in posterior format,
   labels_tr="ark:ali-to-pdf $alidir/final.mdl \"ark:gunzip -c $alidir/ali.*.gz |\" ark:- | ali-to-post ark:- ark:- |"
   labels_cv="ark:ali-to-pdf $alidir/final.mdl \"ark:gunzip -c $alidir_cv/ali.*.gz |\" ark:- | ali-to-post ark:- ark:- |"
+  echo "[TrainFaster][labels_tr] "${labels_tr}
+  echo "[TrainFaster][labels_cv] "${labels_cv}
+
   # training targets for analyze-counts,
   labels_tr_pdf="ark:ali-to-pdf $alidir/final.mdl \"ark:gunzip -c $alidir/ali.*.gz |\" ark:- |"
   labels_tr_phn="ark:ali-to-phones --per-frame=true $alidir/final.mdl \"ark:gunzip -c $alidir/ali.*.gz |\" ark:- |"
+  echo "[TrainFaster][labels_tr_pdf] "${labels_tr_pdf}
+  echo "[TrainFaster][labels_tr_phn] "${labels_tr_phn}
 
   # get pdf-counts, used later for decoding/aligning,
   num_pdf=$(hmm-info $alidir/final.mdl | awk '/pdfs/{print $4}')
+  echo "[TrainFaster][num_pdf] "${num_pdf}
+
   analyze-counts --verbose=1 --binary=false --counts-dim=$num_pdf \
     ${frame_weights:+ "--frame-weights=$frame_weights"} \
     ${utt_weights:+ "--utt-weights=$utt_weights"} \
     "$labels_tr_pdf" $dir/ali_train_pdf.counts 2>$dir/log/analyze_counts_pdf.log
+
   # copy the old transition model, will be needed by decoder,
   copy-transition-model --binary=false $alidir/final.mdl $dir/final.mdl
   # copy the tree
@@ -474,6 +482,13 @@ echo "[TrainFaster] 12 =================================="
 ###### TRAIN ######
 echo
 echo "# RUNNING THE NN-TRAINING SCHEDULER"
+echo "[TrainFaster][nnet_init] "${nnet_init}
+echo "[TrainFaster] [feats_tr] "${feats_tr}
+echo "[TrainFaster] [feats_cv] "${feats_cv}
+echo "[TrainFaster][labels_tr] "${labels_tr}
+echo "[TrainFaster][labels_cv] "${labels_cv}
+echo "[TrainFaster]      [dir] "${dir}
+
 steps/nnet/train_faster_scheduler.sh \
   ${scheduler_opts} \
   ${train_tool:+ --train-tool "$train_tool"} \
@@ -487,7 +502,7 @@ steps/nnet/train_faster_scheduler.sh \
   ${frame_weights:+ --frame-weights "$frame_weights"} \
   ${utt_weights:+ --utt-weights "$utt_weights"} \
   ${config:+ --config $config} \
-  $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
+  ${nnet_init} "${feats_tr}" "${feats_cv}" "${labels_tr}" "${labels_cv}" ${dir}
 
 echo "$0: Successfuly finished. '$dir'"
 
