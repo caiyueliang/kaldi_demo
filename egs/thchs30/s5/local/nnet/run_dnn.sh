@@ -25,29 +25,31 @@ echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
 echo "[run_dnn.sh] nnet_init: "${nnet_init}
 
 # ======================================================================================================================
-echo "[run_dnn.sh] 2 =================================="
- #generate fbanks  生成FBank特征，是40维FBank
- if [ $stage -le 0 ]; then
-   echo "DNN training: stage 0: feature generation"
-   rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
-   for x in train dev test; do
-     echo "producing fbank for $x"
-     #fbank generation
-     steps/make_fbank.sh --nj $nj --cmd "$train_cmd" data/fbank/$x exp/make_fbank/$x fbank/$x || exit 1
-     #ompute cmvn
-     steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
-   done
-
-   echo "producing test_fbank_phone"
-   cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
- fi
+#echo "[run_dnn.sh] 2 =================================="
+# #generate fbanks  生成FBank特征，是40维FBank
+# if [ $stage -le 0 ]; then
+#   echo "DNN training: stage 0: feature generation"
+#   rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
+#   for x in train dev test; do
+#     echo "producing fbank for $x"
+#     #fbank generation
+#     steps/make_fbank.sh --nj $nj --cmd "$train_cmd" data/fbank/$x exp/make_fbank/$x fbank/$x || exit 1
+#     #ompute cmvn
+#     steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
+#   done
+#
+#   echo "producing test_fbank_phone"
+#   cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
+# fi
 
 # ======================================================================================================================
 #####CE-training
 echo "[FSMN] 4 =================================="
-learn_rate=0.00001
+# learn_rate=0.00001
+# learn_rate=0.000001
+learn_rate=0.000002
 max_iters=20
-start_half_lr=5
+start_half_lr=10
 momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
@@ -78,26 +80,33 @@ if [ ${stage} -le 3 ]; then
 
     proto=local/nnet/${dnn_model}.proto
     echo "[FSMN][CE-training]    proto: "${proto}
-
     ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
     echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
-    # new_num_pdf=`gmm-info ./exp/tri6b_cleaned/final.mdl |grep "number of pdfs" |awk '{print $4}'`
+
+    # ======================================================================
+#    # proto使用默认的proto
+#    new_proto=${proto}
+#    echo "[FSMN][CE-training] new proto: "${new_proto}
+    # ======================================================================
+    # proto使用自动获取的
     new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-    echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
-    new_proto=${proto}.$new_num_pdf
-    sed -r "s/"$ori_num_pdf"/"$new_num_pdf"/g" $proto > $new_proto
+    echo "[FSMN][CE-training] new_num_pdf: "${new_num_pdf}
+    new_proto=${proto}.${new_num_pdf}
+    sed -r "s/"${ori_num_pdf}"/"${new_num_pdf}"/g" ${proto} > ${new_proto}
+    # ======================================================================
 
     if [ ! -z ${nnet_init} ]; then
         # 执行脚本train_faster.sh，使用预训练模型进行训练
         echo "[FSMN][CE-training] 使用预训练模型进行训练 : "${nnet_init}
         ${cuda_cmd} ${dir}/train_faster_nnet.log \
-            steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+            steps/nnet/train_faster.sh --learn-rate ${learn_rate} \
             --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
             --train-tool "nnet-train-fsmn-streams" \
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
             --train-tool-opts "--minibatch-size=4096" \
             --nnet_init ${nnet_init} \
+            --skip_phoneset_check "true" \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     else
         echo "[FSMN][CE-training] 不使用预训练模型进行训练 ... "
@@ -112,6 +121,7 @@ if [ ${stage} -le 3 ]; then
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     fi
 
+    # --skip_phoneset_check true \
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
     steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
