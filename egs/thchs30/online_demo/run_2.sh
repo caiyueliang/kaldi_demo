@@ -17,13 +17,10 @@ data_url="http://sourceforge.net/projects/kaldi/files/online-data.tar.bz2"
 # ac_model_type=thchs30_tri1
 # ac_model_type=thchs30_tri2b
 # ac_model_type=thchs30_tri4b
-# ac_model_type=thchs30_tri7b_DFSMN_L
-
-# ===================================================================
 # ac_model_type=aishell_tri1
-# ac_model_type=aishell_tri5a
+ac_model_type=aishell_tri5a
 # ac_model_type=aishell_tri5a_back
-ac_model_type=aishell_chain
+# ac_model_type=aishell_chain
 
 # ===================================================================
 # decode audio path
@@ -50,15 +47,6 @@ echo "[Online_Decode] [ac_model_path] : "${ac_model}
 echo "[Online_Decode]    [audio_path] : "${audio}
 echo "[Online_Decode]    [decode_dir] : "${decode_dir}
 echo "[Online_Decode]     [test_mode] : "${test_mode}
-
-#if [ ! -d $ac_model ]; then
-#    echo "Extracting the models and data ..."
-#    tar xf ${data_file}.tar.bz2
-#fi
-#
-#if [ -s $ac_model/matrix ]; then
-#    trans_matrix=$ac_model/matrix
-#fi
 
 echo "[Online_Decode] 2 ============================================"
 case $test_mode in
@@ -143,6 +131,40 @@ case $test_mode in
                     scp:${decode_dir}/input.scp ${final_model} ${ac_model}/HCLG.fst \
                     ${ac_model}/words.txt '1:2:3:4:5' ark,t:${decode_dir}/trans.txt \
                     ark,t:${decode_dir}/ali.txt ${trans_matrix};;
+            aishell_tri1)
+                trans_matrix=""
+                final_model=${ac_model}/final.mdl
+                echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
+                echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
+                echo "[Online_Decode]   [final_model] : "${final_model}
+                online-wav-gmm-decode-faster --verbose=1 --rt-min=0.8 --rt-max=0.85\
+                    --max-active=7000 --beam=15.0 --acoustic-scale=0.0769 \
+                    scp:${decode_dir}/input.scp ${final_model} ${ac_model}/HCLG.fst \
+                    ${ac_model}/words.txt '1:2:3:4:5' ark,t:${decode_dir}/trans.txt \
+                    ark,t:${decode_dir}/ali.txt ${trans_matrix};;
+            aishell_tri5a_back)
+                trans_matrix=${ac_model}/final.mat
+                final_model=${ac_model}/final.alimdl
+                echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
+                echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
+                echo "[Online_Decode]   [final_model] : "${final_model}
+                online-wav-gmm-decode-faster --verbose=1 --rt-min=0.8 --rt-max=0.85 \
+                    --max-active=7000 --beam=15.0 --acoustic-scale=0.0769 \
+                    --left-context=3 --right-context=3 \
+                    scp:${decode_dir}/input.scp ${final_model} ${ac_model}/HCLG.fst \
+                    ${ac_model}/words.txt '1:2:3:4:5' ark,t:${decode_dir}/trans.txt \
+                    ark,t:${decode_dir}/ali.txt ${trans_matrix};;
+            aishell_tri5a)
+                trans_matrix=""
+                final_model=${ac_model}/final.mdl
+                echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
+                echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
+                echo "[Online_Decode]   [final_model] : "${final_model}
+                online2-wav-nnet3-latgen-faster --do-endpointing=false --frames-per-chunk=20 --extra-left-context-initial=0 \
+                    --online=true --frame-subsampling-factor=3 --config=${ac_model}/conf/online.conf \
+                    --min-active=200 --max-active=7000 --beam=15.0 --lattice-beam=6.0 --acoustic-scale=1.0 \
+                    --word-symbol-table=${ac_model}/words.txt ${final_model} ${ac_model}/HCLG.fst ark:${audio}/spk2utt \
+                    'ark,s,cs:wav-copy scp,p:'${audio}'/wav.scp ark:- |' 'ark:|lattice-scale --acoustic-scale=10.0 ark:- ark:- | gzip -c >./work/lat.1.gz';;
             aishell_chain)
                 trans_matrix=""
                 final_model=${ac_model}/final.mdl
