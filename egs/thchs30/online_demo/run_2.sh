@@ -6,6 +6,8 @@
 # Note: you have to do 'make ext' in ../../../src/ before running this.
 
 # Set the paths to the binaries and scripts needed
+[ -f ./path.sh ] && . ./path.sh; # source the path.
+
 KALDI_ROOT=`pwd`/../../..
 export PATH=$PWD/../s5/utils/:${KALDI_ROOT}/src/onlinebin:${KALDI_ROOT}/src/online2bin:${KALDI_ROOT}/src/bin:${KALDI_ROOT}/src/featbin:${KALDI_ROOT}/src/latbin:$PATH
 
@@ -17,10 +19,12 @@ data_url="http://sourceforge.net/projects/kaldi/files/online-data.tar.bz2"
 # ac_model_type=thchs30_tri1
 # ac_model_type=thchs30_tri2b
 # ac_model_type=thchs30_tri4b
+# ac_model_type=thchs30_tri7b_DFSMN_L
 # ac_model_type=aishell_tri1
-ac_model_type=aishell_tri5a
+# ac_model_type=aishell_tri5a
 # ac_model_type=aishell_tri5a_back
-# ac_model_type=aishell_chain
+ac_model_type=aishell_chain
+# ac_model_type=aishell_tri7b_DFSMN_L
 
 # ===================================================================
 # decode audio path
@@ -131,6 +135,18 @@ case $test_mode in
                     scp:${decode_dir}/input.scp ${final_model} ${ac_model}/HCLG.fst \
                     ${ac_model}/words.txt '1:2:3:4:5' ark,t:${decode_dir}/trans.txt \
                     ark,t:${decode_dir}/ali.txt ${trans_matrix};;
+            thchs30_tri7b_DFSMN_L)
+                trans_matrix=${ac_model}/final.mat
+                final_model=${ac_model}/final.mdl
+                echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
+                echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
+                echo "[Online_Decode]   [final_model] : "${final_model}
+                online-wav-gmm-decode-faster --verbose=1 --rt-min=0.8 --rt-max=0.85 \
+                    --max-active=4000 --beam=12.0 --acoustic-scale=0.0769 \
+                    --left-context=3 --right-context=3 \
+                    scp:${decode_dir}/input.scp ${final_model} ${ac_model}/HCLG.fst \
+                    ${ac_model}/words.txt '1:2:3:4:5' ark,t:${decode_dir}/trans.txt \
+                    ark,t:${decode_dir}/ali.txt ${trans_matrix};;
             aishell_tri1)
                 trans_matrix=""
                 final_model=${ac_model}/final.mdl
@@ -176,6 +192,55 @@ case $test_mode in
                     --min-active=200 --max-active=7000 --beam=15.0 --lattice-beam=6.0 --acoustic-scale=1.0 \
                     --word-symbol-table=${ac_model}/words.txt ${final_model} ${ac_model}/HCLG.fst ark:${audio}/spk2utt \
                     'ark,s,cs:wav-copy scp,p:'${audio}'/wav.scp ark:- |' 'ark:|lattice-scale --acoustic-scale=10.0 ark:- ark:- | gzip -c >./work/lat.1.gz';;
+            aishell_tri7b_DFSMN_L)
+                num_threads=1
+                cmd=run.pl
+                trans_matrix=""
+                final_model=${ac_model}/final.mdl
+                model_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell/s5/exp/tri7b_DFSMN_L"
+                graph_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell/s5/exp/tri5a/graph"
+                echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
+                echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
+                echo "[Online_Decode]   [final_model] : "${final_model}
+
+                echo "[Online_Decode] 0 ============================================"
+                mfccdir=mfcc
+                for x in test; do
+                  steps/make_mfcc_pitch.sh --cmd "run.pl --mem 2G" --nj 1 data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
+                  steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
+                  utils/fix_data_dir.sh data/${x} || exit 1;
+                done
+
+                echo "[Online_Decode] 1 ============================================"
+                # generate fbanks  生成FBank特征，是40维FBank
+                echo "DNN training: stage 0: feature generation"
+                rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/test data/fbank || exit 1;
+                for x in test; do
+                    echo "producing fbank for $x"
+                    # fbank generation
+                    steps/make_fbank.sh --nj 1 --cmd "run.pl --mem 2G" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1;
+                    # ompute cmvn
+                    steps/compute_cmvn_stats.sh data/fbank/${x} exp/fbank_cmvn/${x} fbank/${x} || exit 1;
+                done
+                echo "producing test_fbank_phone"
+                cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
+
+                echo "[Online_Decode] 2 ============================================"
+                #$cmd --num-threads $((num_threads+1)) JOB=1:$nj $dir/log/decode.JOB.log \
+#                nnet-forward "--no-softmax=true --prior-scale=1.0" --feature-transform=${model_dir}/final.feature_transform \
+#                    --class-frame-counts=${model_dir}/ali_train_pdf.counts --use-gpu="no" "${model_dir}/final.nnet" \
+#                    "$feats" ark:- \| latgen-faster-mapped --min-active=200 --max-active=7000 --max-mem=50000000 \
+#                    --beam=13.0 --lattice-beam=8.0 --acoustic-scale=0.08 --allow-partial=true \
+#                    --word-symbol-table=${graph_dir}/words.txt \
+#                    ${model_dir}/final.mdl ${graph_dir}/HCLG.fst ark:- "ark:|gzip -c > ./work/lat.gz" ;;
+                ${cmd} --num-threads ${num_threads} JOB=1:1 ./work/log/decode.JOB.log \
+                    nnet-forward --no-softmax=true --prior-scale=1.0 --feature-transform=${model_dir}/final.feature_transform \
+                    --class-frame-counts=${model_dir}/ali_train_pdf.counts --use-gpu="no" "${model_dir}/final.nnet" \
+                    'ark,s,cs:wav-copy scp,p:'${audio}'/wav.scp ark:- |' 'ark:|lattice-scale --acoustic-scale=10.0 ark:- ark:- | gzip -c >./work/lat.1.gz' ark:- \| \
+                    latgen-faster-mapped --min-active=200 --max-active=7000 --max-mem=50000000 \
+                    --beam=13.0 --lattice-beam=8.0 --acoustic-scale=0.08 --allow-partial=true \
+                    --word-symbol-table=${graph_dir}/words.txt \
+                    ${model_dir}/final.mdl ${graph_dir}/HCLG.fst ark:- "ark:|gzip -c > ./work/lat.gz"; exit 1;;
             *)
                 echo "[ERROR] Invalid ac_model_type ..."; exit 1;;
         esac;;
