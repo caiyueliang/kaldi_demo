@@ -23,8 +23,8 @@ data_url="http://sourceforge.net/projects/kaldi/files/online-data.tar.bz2"
 # ac_model_type=aishell_tri1
 # ac_model_type=aishell_tri5a
 # ac_model_type=aishell_tri5a_back
-ac_model_type=aishell_chain
-# ac_model_type=aishell_tri7b_DFSMN_L
+# ac_model_type=aishell_chain
+ac_model_type=aishell_tri7b_DFSMN_L
 
 # ===================================================================
 # decode audio path
@@ -194,49 +194,19 @@ case $test_mode in
                     'ark,s,cs:wav-copy scp,p:'${audio}'/wav.scp ark:- |' 'ark:|lattice-scale --acoustic-scale=10.0 ark:- ark:- | gzip -c >./work/lat.1.gz';;
             aishell_tri7b_DFSMN_L)
                 num_threads=1
-                cmd=run.pl
                 trans_matrix=""
                 final_model=${ac_model}/final.mdl
-                model_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell/s5/exp/tri7b_DFSMN_L"
-                graph_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell/s5/exp/tri5a/graph"
+                model_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell_old_0119/s5/exp/tri7b_DFSMN_L"
+                graph_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell_old_0119/s5/exp/tri5a/graph"
                 echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
                 echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
                 echo "[Online_Decode]   [final_model] : "${final_model}
 
                 echo "[Online_Decode] 0 ============================================"
-                mfccdir=mfcc
-                for x in test; do
-                  steps/make_mfcc_pitch.sh --cmd "run.pl --mem 2G" --nj 1 data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
-                  steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
-                  utils/fix_data_dir.sh data/${x} || exit 1;
-                done
-
-                echo "[Online_Decode] 1 ============================================"
-                # generate fbanks  生成FBank特征，是40维FBank
-                echo "DNN training: stage 0: feature generation"
-                rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/test data/fbank || exit 1;
-                for x in test; do
-                    echo "producing fbank for $x"
-                    # fbank generation
-                    steps/make_fbank.sh --nj 1 --cmd "run.pl --mem 2G" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1;
-                    # ompute cmvn
-                    steps/compute_cmvn_stats.sh data/fbank/${x} exp/fbank_cmvn/${x} fbank/${x} || exit 1;
-                done
-                echo "producing test_fbank_phone"
-                cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
-
-                echo "[Online_Decode] 2 ============================================"
-                #$cmd --num-threads $((num_threads+1)) JOB=1:$nj $dir/log/decode.JOB.log \
-#                nnet-forward "--no-softmax=true --prior-scale=1.0" --feature-transform=${model_dir}/final.feature_transform \
-#                    --class-frame-counts=${model_dir}/ali_train_pdf.counts --use-gpu="no" "${model_dir}/final.nnet" \
-#                    "$feats" ark:- \| latgen-faster-mapped --min-active=200 --max-active=7000 --max-mem=50000000 \
-#                    --beam=13.0 --lattice-beam=8.0 --acoustic-scale=0.08 --allow-partial=true \
-#                    --word-symbol-table=${graph_dir}/words.txt \
-#                    ${model_dir}/final.mdl ${graph_dir}/HCLG.fst ark:- "ark:|gzip -c > ./work/lat.gz" ;;
-                ${cmd} --num-threads ${num_threads} JOB=1:1 ./work/log/decode.JOB.log \
+                run.pl --num-threads ${num_threads} JOB=1:1 ./work/log/decode.JOB.log \
                     nnet-forward --no-softmax=true --prior-scale=1.0 --feature-transform=${model_dir}/final.feature_transform \
                     --class-frame-counts=${model_dir}/ali_train_pdf.counts --use-gpu="no" "${model_dir}/final.nnet" \
-                    'ark,s,cs:wav-copy scp,p:'${audio}'/wav.scp ark:- |' 'ark:|lattice-scale --acoustic-scale=10.0 ark:- ark:- | gzip -c >./work/lat.1.gz' ark:- \| \
+                    'ark,s,cs:copy-feats scp:/home/rd/caiyueliang/kaldi-trunk/egs/aishell/online_demo/tmp_data/fbank/test/feats.scp ark:- | apply-cmvn --norm-means=true --norm-vars=false --utt2spk=ark:/home/rd/caiyueliang/kaldi-trunk/egs/aishell/online_demo/tmp_data/fbank/test/utt2spk scp:/home/rd/caiyueliang/kaldi-trunk/egs/aishell/online_demo/tmp_data/fbank/test/cmvn.scp ark:- ark:- | add-deltas --delta-order=2 ark:- ark:- |' ark:- \| \
                     latgen-faster-mapped --min-active=200 --max-active=7000 --max-mem=50000000 \
                     --beam=13.0 --lattice-beam=8.0 --acoustic-scale=0.08 --allow-partial=true \
                     --word-symbol-table=${graph_dir}/words.txt \
