@@ -13,39 +13,6 @@ echo "[run_dnn.sh] 1 =================================="
 stage=0
 nj=8
 nnet_init=
-
-. utils/parse_options.sh || exit 1;
-
-gmmdir=$1
-alidir=$2
-alidir_cv=$3
-echo "[run_dnn.sh]    gmmdir: "${gmmdir}
-echo "[run_dnn.sh]    alidir: "${alidir}
-echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
-echo "[run_dnn.sh] nnet_init: "${nnet_init}
-
-## ======================================================================================================================
-echo "[run_dnn.sh] 2 =================================="
-#generate fbanks  生成FBank特征，是40维FBank
-if [ $stage -le 0 ]; then
-  echo "DNN training: stage 0: feature generation"
-  # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
-  rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
-  for x in train dev test; do
-    echo "producing fbank for $x"
-    #fbank generation
-    steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
-    #ompute cmvn
-    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
-  done
-
-  echo "producing test_fbank_phone"
-  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
-fi
-
-# ======================================================================================================================
-#####CE-training
-echo "[FSMN] 4 =================================="
 learn_rate=0.00001
 max_iters=20
 start_half_lr=10
@@ -53,8 +20,9 @@ momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
-# data_fbk=data_fbank
-data_fbk=data/fbank
+# feats_type=fbank
+feats_type=mfcc
+data_fbk=data/${feats_type}
 acwt=0.08
 
 echo "[FSMN][CE-training]           dir: "${dir}
@@ -66,6 +34,69 @@ echo "[FSMN][CE-training]      momentum: "${momentum}
 echo "[FSMN][CE-training]     dnn_model: "${dnn_model}
 echo "[FSMN][CE-training]      data_fbk: "${data_fbk}
 echo "[FSMN][CE-training]          acwt: "${acwt}
+
+. utils/parse_options.sh || exit 1;
+
+gmmdir=$1
+alidir=$2
+alidir_cv=$3
+echo "[run_dnn.sh]    gmmdir: "${gmmdir}
+echo "[run_dnn.sh]    alidir: "${alidir}
+echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
+echo "[run_dnn.sh] nnet_init: "${nnet_init}
+
+### ======================================================================================================================
+#echo "[run_dnn.sh] 2 =================================="
+##generate fbanks  生成FBank特征，是40维FBank
+#if [ $stage -le 0 ]; then
+#  echo "DNN training: stage 0: feature generation"
+#  # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
+#  rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
+#  for x in train dev test; do
+#    echo "producing fbank for $x"
+#    #fbank generation
+#    steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
+#    #ompute cmvn
+#    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
+#  done
+#
+#  echo "producing test_fbank_phone"
+#  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
+#fi
+
+case ${feats_type} in
+    fbank)
+        # 生成MFCC特征，是40维FBank
+        echo "[run_dnn] use fbank ..."
+        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+        for x in train dev test; do
+            echo "producing fbank for ${x}"
+            steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+        done
+        # echo "producing test_fbank_phone"
+        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
+        ;;
+    mfcc)
+        # 生成MFCC特征
+        echo "[run_dnn] use mfcc ..."
+        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+        for x in train dev test; do
+            echo "producing mfcc for ${x}"
+            steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1;
+            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1
+        done
+        # echo "producing test_fbank_phone"
+        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
+        ;;
+    *)
+        echo "[ERROR] Invalid feats_type ${feats_type} ..."; exit 1;;
+esac
+
+# ======================================================================================================================
+#####CE-training
+echo "[FSMN] 4 =================================="
+
 
 echo "[FSMN] 5 =================================="
 if [ ${stage} -le 3 ]; then
@@ -82,16 +113,16 @@ if [ ${stage} -le 3 ]; then
     ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
     echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
 
+#    # ======================================================================
+#    # proto使用默认的
+#    new_proto=${proto}
+#    echo "[FSMN][CE-training] new proto: "${new_proto}
     # ======================================================================
-    # proto使用默认的
-    new_proto=${proto}
-    echo "[FSMN][CE-training] new proto: "${new_proto}
-    # ======================================================================
-    # # proto使用自动获取的
-    # new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-    # echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
-    # new_proto=${proto}.${new_num_pdf}
-    # sed -r "s/"${ori_num_pdf}"/"${new_num_pdf}"/g" ${proto} > ${new_proto}
+     # proto使用自动获取的
+     new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
+     echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
+     new_proto=${proto}.${new_num_pdf}
+     sed -r "s/"${ori_num_pdf}"/"${new_num_pdf}"/g" ${proto} > ${new_proto}
     # ======================================================================
 
     if [ ! -z ${nnet_init} ]; then
@@ -105,6 +136,7 @@ if [ ${stage} -le 3 ]; then
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
             --train-tool-opts "--minibatch-size=4096" \
             --nnet_init ${nnet_init} \
+            --skip_phoneset_check "true" \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     else
         echo "[FSMN][CE-training] 不使用预训练模型进行训练 ... "
@@ -118,16 +150,6 @@ if [ ${stage} -le 3 ]; then
             --train-tool-opts "--minibatch-size=4096" \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     fi
-
-    # # 执行脚本train.sh
-    # ${cuda_cmd} ${dir}/train_nnet.log \
-    #     steps/nnet/train.sh --copy_feats false --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
-    #     --max_iters ${max_iters} --momentum ${momentum} \
-    #     --train-tool "nnet-train-fsmn-streams" \
-    #     --feat-type plain --splice 1 \
-    #     --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
-    #     --train-tool-opts "--minibatch-size=4096" \
-    #     ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
 
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
