@@ -114,7 +114,8 @@ if [ ${stage} -le 3 ]; then
          mkdir ${dir}/decode_test_phone/log
      fi
 
-    proto=local/nnet/${dnn_model}.proto
+    # proto=local/nnet/${dnn_model}.proto
+    proto=local/nnet/${dnn_model}"_"${feats_type}.proto
     echo "[FSMN][CE-training]    proto: "${proto}
     ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
     echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
