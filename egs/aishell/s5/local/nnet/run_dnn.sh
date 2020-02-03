@@ -21,6 +21,7 @@ momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
+feats_gen=0
 feats_type=fbank
 # feats_type=mfcc
 data_fbk=data/${feats_type}
@@ -28,6 +29,8 @@ acwt=0.08
 
 echo "[FSMN][CE-training]           dir: "${dir}
 echo "[FSMN][CE-training]      cuda_cmd: "${cuda_cmd}
+echo "[FSMN][CE-training]     feats_gen: "${feats_gen}
+echo "[FSMN][CE-training]    feats_type: "${feats_type}
 echo "[FSMN][CE-training]    learn_rate: "${learn_rate}
 echo "[FSMN][CE-training]     max_iters: "${max_iters}
 echo "[FSMN][CE-training]     min_iters: "${min_iters}
@@ -66,40 +69,41 @@ echo "[run_dnn.sh] nnet_init: "${nnet_init}
 #  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
 #fi
 
-#case ${feats_type} in
-#    fbank)
-#        # 生成MFCC特征，是40维FBank
-#        echo "[run_dnn] use fbank ..."
-#        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
-#        for x in train dev test; do
-#            echo "producing fbank for ${x}"
-#            steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-#            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-#        done
-#        # echo "producing test_fbank_phone"
-#        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
-#        ;;
-#    mfcc)
-#        # 生成MFCC特征
-#        echo "[run_dnn] use mfcc ..."
-#        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
-#        for x in train dev test; do
-#            echo "producing mfcc for ${x}"
-#            steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1;
-#            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1
-#        done
-#        # echo "producing test_fbank_phone"
-#        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
-#        ;;
-#    *)
-#        echo "[ERROR] Invalid feats_type ${feats_type} ..."; exit 1;;
-#esac
+if [ ${feats_gen} -ne 0 ]; then
+    echo "[run_dnn] Re-generate features data ..."
+    case ${feats_type} in
+        fbank)
+            # 生成MFCC特征，是40维FBank
+            echo "[run_dnn] use fbank ..."
+            rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+            for x in train dev test; do
+                echo "producing fbank for ${x}"
+                steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+                steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+            done
+            # echo "producing test_fbank_phone"
+            # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
+            ;;
+        mfcc)
+            # 生成MFCC特征
+            echo "[run_dnn] use mfcc ..."
+            rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+            for x in train dev test; do
+                echo "producing mfcc for ${x}"
+                steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1;
+                steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1
+            done
+            # echo "producing test_fbank_phone"
+            # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
+            ;;
+        *)
+            echo "[ERROR] Invalid feats_type ${feats_type} ..."; exit 1;;
+    esac
+fi
+
 
 # ======================================================================================================================
 #####CE-training
-echo "[FSMN] 4 =================================="
-
-
 echo "[FSMN] 5 =================================="
 if [ ${stage} -le 3 ]; then
      if [ ! -d "${dir}" ]; then
@@ -115,16 +119,16 @@ if [ ${stage} -le 3 ]; then
     ori_num_pdf=`cat $proto |grep "Softmax" |awk '{print $3}'`
     echo "[FSMN][CE-training] ori_num_pdf: "$ori_num_pdf
 
-#    # ======================================================================
-#    # proto使用默认的
-#    new_proto=${proto}
-#    echo "[FSMN][CE-training] new proto: "${new_proto}
+    # # ======================================================================
+    # # proto使用默认的
+    # new_proto=${proto}
+    # echo "[FSMN][CE-training] new proto: "${new_proto}
     # ======================================================================
-     # proto使用自动获取的
-     new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
-     echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
-     new_proto=${proto}.${new_num_pdf}
-     sed -r "s/"${ori_num_pdf}"/"${new_num_pdf}"/g" ${proto} > ${new_proto}
+    # proto使用自动获取的
+    new_num_pdf=`gmm-info ${gmmdir}/final.mdl |grep "number of pdfs" |awk '{print $4}'`
+    echo "[FSMN][CE-training] new_num_pdf: "$new_num_pdf
+    new_proto=${proto}.${new_num_pdf}
+    sed -r "s/"${ori_num_pdf}"/"${new_num_pdf}"/g" ${proto} > ${new_proto}
     # ======================================================================
 
     if [ ! -z ${nnet_init} ]; then
