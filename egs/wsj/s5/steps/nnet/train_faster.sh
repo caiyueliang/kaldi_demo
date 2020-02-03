@@ -17,8 +17,8 @@ dbn=                # (optional) prepend layers to the initialized NN,
 proto_opts=         # adds options to 'make_nnet_proto.py',
 cnn_proto_opts=     # adds options to 'make_cnn_proto.py',
 
-nnet_init=          # (optional) use this pre-initialized NN,
-nnet_proto=         # (optional) use this NN prototype for initialization,
+nnet_init=          # (optional) use this pre-initialized NN,               如果设置，表示使用预先初始化的模型进行训练
+nnet_proto=         # (optional) use this NN prototype for initialization,  如果设置，表示使用此NN原型进行初始化
 
 # feature processing,
 splice=5            # (default) splice features both-ways along time axis,
@@ -45,6 +45,7 @@ num_tgt=           # (optional) specifiy number of NN outputs, to be used with '
 learn_rate=0.008   # initial learning rate,
 momentum=0
 max_iters=20
+min_iters=5
 start_half_lr=5    # start to anneal the learning rate
 seed=777           # random seed
 scheduler_opts=    # options, passed to the training scheduler,
@@ -158,7 +159,7 @@ if [ ! -z "$labels" ]; then
   labels_tr="$labels"
   labels_cv="$labels"
 else
-  echo "[TrainFaster] Using PDF targets from dirs '$alidir' '$alidir_cv'"
+  echo "Using PDF targets from dirs '$alidir' '$alidir_cv'"
   # training targets in posterior format,
   labels_tr="ark:ali-to-pdf $alidir/final.mdl \"ark:gunzip -c $alidir/ali.*.gz |\" ark:- | ali-to-post ark:- ark:- |"
   labels_cv="ark:ali-to-pdf $alidir/final.mdl \"ark:gunzip -c $alidir_cv/ali.*.gz |\" ark:- | ali-to-post ark:- ark:- |"
@@ -482,13 +483,6 @@ echo "[TrainFaster] 12 =================================="
 ###### TRAIN ######
 echo
 echo "# RUNNING THE NN-TRAINING SCHEDULER"
-echo "[TrainFaster][nnet_init] "${nnet_init}
-echo "[TrainFaster] [feats_tr] "${feats_tr}
-echo "[TrainFaster] [feats_cv] "${feats_cv}
-echo "[TrainFaster][labels_tr] "${labels_tr}
-echo "[TrainFaster][labels_cv] "${labels_cv}
-echo "[TrainFaster]      [dir] "${dir}
-
 steps/nnet/train_faster_scheduler.sh \
   ${scheduler_opts} \
   ${train_tool:+ --train-tool "$train_tool"} \
@@ -498,11 +492,12 @@ steps/nnet/train_faster_scheduler.sh \
   --learn-rate ${learn_rate} \
   --momentum ${momentum} \
   --max_iters ${max_iters} \
+  --min_iters ${min_iters} \
   --start_half_lr ${start_half_lr} \
   ${frame_weights:+ --frame-weights "$frame_weights"} \
   ${utt_weights:+ --utt-weights "$utt_weights"} \
   ${config:+ --config $config} \
-  ${nnet_init} "${feats_tr}" "${feats_cv}" "${labels_tr}" "${labels_cv}" ${dir}
+  $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 
 echo "$0: Successfuly finished. '$dir'"
 

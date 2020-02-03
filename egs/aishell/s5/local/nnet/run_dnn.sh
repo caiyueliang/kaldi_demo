@@ -15,13 +15,14 @@ nj=8
 nnet_init=
 learn_rate=0.00001
 max_iters=20
-start_half_lr=10
+min_iters=14
+start_half_lr=6
 momentum=0.9
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
-# feats_type=fbank
-feats_type=mfcc
+feats_type=fbank
+# feats_type=mfcc
 data_fbk=data/${feats_type}
 acwt=0.08
 
@@ -29,6 +30,7 @@ echo "[FSMN][CE-training]           dir: "${dir}
 echo "[FSMN][CE-training]      cuda_cmd: "${cuda_cmd}
 echo "[FSMN][CE-training]    learn_rate: "${learn_rate}
 echo "[FSMN][CE-training]     max_iters: "${max_iters}
+echo "[FSMN][CE-training]     min_iters: "${min_iters}
 echo "[FSMN][CE-training] start_half_lr: "${start_half_lr}
 echo "[FSMN][CE-training]      momentum: "${momentum}
 echo "[FSMN][CE-training]     dnn_model: "${dnn_model}
@@ -64,34 +66,34 @@ echo "[run_dnn.sh] nnet_init: "${nnet_init}
 #  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
 #fi
 
-case ${feats_type} in
-    fbank)
-        # 生成MFCC特征，是40维FBank
-        echo "[run_dnn] use fbank ..."
-        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
-        for x in train dev test; do
-            echo "producing fbank for ${x}"
-            steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-        done
-        # echo "producing test_fbank_phone"
-        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
-        ;;
-    mfcc)
-        # 生成MFCC特征
-        echo "[run_dnn] use mfcc ..."
-        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
-        for x in train dev test; do
-            echo "producing mfcc for ${x}"
-            steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1;
-            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1
-        done
-        # echo "producing test_fbank_phone"
-        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
-        ;;
-    *)
-        echo "[ERROR] Invalid feats_type ${feats_type} ..."; exit 1;;
-esac
+#case ${feats_type} in
+#    fbank)
+#        # 生成MFCC特征，是40维FBank
+#        echo "[run_dnn] use fbank ..."
+#        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+#        for x in train dev test; do
+#            echo "producing fbank for ${x}"
+#            steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+#            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+#        done
+#        # echo "producing test_fbank_phone"
+#        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
+#        ;;
+#    mfcc)
+#        # 生成MFCC特征
+#        echo "[run_dnn] use mfcc ..."
+#        rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+#        for x in train dev test; do
+#            echo "producing mfcc for ${x}"
+#            steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1;
+#            steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1
+#        done
+#        # echo "producing test_fbank_phone"
+#        # cp ${data_fbk}/test/feats.scp ${data_fbk}/test_phone && cp ${data_fbk}/test/cmvn.scp ${data_fbk}/test_phone || exit 1;
+#        ;;
+#    *)
+#        echo "[ERROR] Invalid feats_type ${feats_type} ..."; exit 1;;
+#esac
 
 # ======================================================================================================================
 #####CE-training
@@ -131,6 +133,7 @@ if [ ${stage} -le 3 ]; then
         ${cuda_cmd} ${dir}/train_faster_nnet.log \
             steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
             --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
+            --min_iters ${min_iters} \
             --train-tool "nnet-train-fsmn-streams" \
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
@@ -144,6 +147,7 @@ if [ ${stage} -le 3 ]; then
         ${cuda_cmd} ${dir}/train_faster_nnet.log \
             steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
             --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
+            --min_iters ${min_iters} \
             --train-tool "nnet-train-fsmn-streams" \
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \

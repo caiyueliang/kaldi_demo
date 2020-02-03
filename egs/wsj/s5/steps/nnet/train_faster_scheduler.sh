@@ -84,8 +84,12 @@ dropout_array=($(echo ${dropout_schedule} | tr ',' ' '))
 # start training
 
 # choose mlp to start with,
-mlp_best=$mlp_init
-mlp_base=${mlp_init##*/}; mlp_base=${mlp_base%.*}
+mlp_best=${mlp_init}
+echo "[train_faster_scheduler]  mlp_best: "${mlp_best}
+mlp_base=${mlp_init##*/}
+echo "[train_faster_scheduler]  mlp_best: "${mlp_best}
+mlp_base=${mlp_base%.*}
+echo "[train_faster_scheduler]  mlp_best: "${mlp_best}
 
 # optionally resume training from the best epoch, using saved learning-rate,
 [ -e $dir/.mlp_best ] && mlp_best=$(cat $dir/.mlp_best)
@@ -116,7 +120,6 @@ echo "[train_faster_scheduler] start_half_lr: "${start_half_lr}
 echo "[train_faster_scheduler]      momentum: "${momentum}
 echo "[train_faster_scheduler] start_halving_impr: "${start_halving_impr}
 echo "[train_faster_scheduler]   end_halving_impr: "${end_halving_impr}
-
 
 for iter in $(seq -w ${max_iters}); do
   echo -n "ITERATION $iter: "
