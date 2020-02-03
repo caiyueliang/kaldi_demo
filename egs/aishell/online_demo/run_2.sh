@@ -25,6 +25,7 @@ data_url="http://sourceforge.net/projects/kaldi/files/online-data.tar.bz2"
 # ac_model_type=aishell_tri5a_back
 # ac_model_type=aishell_chain
 ac_model_type=aishell_tri7b_DFSMN_L
+# ac_model_type=aishell_tri7b_DFSMN_L_smbr
 
 # ===================================================================
 # decode audio path
@@ -198,6 +199,25 @@ case $test_mode in
                 final_model=${ac_model}/final.mdl
                 model_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell_old_0119/s5/exp/tri7b_DFSMN_L"
                 graph_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell_old_0119/s5/exp/tri5a/graph"
+                echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
+                echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
+                echo "[Online_Decode]   [final_model] : "${final_model}
+
+                echo "[Online_Decode] 0 ============================================"
+                run.pl --num-threads ${num_threads} JOB=1:1 ./work/log/decode.JOB.log \
+                    nnet-forward --no-softmax=true --prior-scale=1.0 --feature-transform=${model_dir}/final.feature_transform \
+                    --class-frame-counts=${model_dir}/ali_train_pdf.counts --use-gpu="no" "${model_dir}/final.nnet" \
+                    'ark,s,cs:copy-feats scp:/home/rd/caiyueliang/kaldi-trunk/egs/aishell/online_demo/tmp_data/fbank/test/feats.scp ark:- | apply-cmvn --norm-means=true --norm-vars=false --utt2spk=ark:/home/rd/caiyueliang/kaldi-trunk/egs/aishell/online_demo/tmp_data/fbank/test/utt2spk scp:/home/rd/caiyueliang/kaldi-trunk/egs/aishell/online_demo/tmp_data/fbank/test/cmvn.scp ark:- ark:- | add-deltas --delta-order=2 ark:- ark:- |' ark:- \| \
+                    latgen-faster-mapped --min-active=200 --max-active=7000 --max-mem=50000000 \
+                    --beam=13.0 --lattice-beam=8.0 --acoustic-scale=0.08 --allow-partial=true \
+                    --word-symbol-table=${graph_dir}/words.txt \
+                    ${model_dir}/final.mdl ${graph_dir}/HCLG.fst ark:- "ark:|gzip -c > ./work/lat.gz"; exit 1;;
+            aishell_tri7b_DFSMN_L_smbr)
+                num_threads=1
+                trans_matrix=""
+                final_model=${ac_model}/final.mdl
+                model_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell/s5/exp/tri7b_DFSMN_L_smbr_mfcc_15.43%"
+                graph_dir="/home/rd/caiyueliang/kaldi-trunk/egs/aishell/s5/exp/tri5a/graph"
                 echo "[Online_Decode] [ac_model_type] : "${ac_model_type}
                 echo "[Online_Decode]  [trans_matrix] : "${trans_matrix}
                 echo "[Online_Decode]   [final_model] : "${final_model}
