@@ -53,6 +53,7 @@ train_tool=        # optionally change the training tool,
 train_tool_opts=   # options for the training tool,
 frame_weights=     # per-frame weights for gradient weighting,
 utt_weights=       # per-utterance weights (scalar for --frame-weights),
+dropout_schedule=
 
 # data processing, misc.
 copy_feats=false     # resave the train/cv features into /tmp (disabled by default),
@@ -494,6 +495,7 @@ steps/nnet/train_faster_scheduler.sh \
   --max_iters ${max_iters} \
   --min_iters ${min_iters} \
   --start_half_lr ${start_half_lr} \
+  --dropout_schedule ${dropout_schedule} \
   ${frame_weights:+ --frame-weights "$frame_weights"} \
   ${utt_weights:+ --utt-weights "$utt_weights"} \
   ${config:+ --config $config} \

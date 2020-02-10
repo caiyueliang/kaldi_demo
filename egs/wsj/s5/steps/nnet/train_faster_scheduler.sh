@@ -63,6 +63,14 @@ labels_tr=$4
 labels_cv=$5
 dir=$6
 
+echo "[train_faster_scheduler]          max_iters: "${max_iters}
+echo "[train_faster_scheduler]          min_iters: "${min_iters}
+echo "[train_faster_scheduler]      keep_lr_iters: "${keep_lr_iters}
+echo "[train_faster_scheduler]   dropout_schedule: "${dropout_schedule}
+echo "[train_faster_scheduler] start_halving_impr: "${start_halving_impr}
+echo "[train_faster_scheduler]   end_halving_impr: "${mlp_init}
+echo "[train_faster_scheduler]     halving_factor: "${mlp_init}
+echo "[train_faster_scheduler]      start_half_lr: "${mlp_init}
 echo "[train_faster_scheduler]  mlp_init: "${mlp_init}
 echo "[train_faster_scheduler]  feats_tr: "${feats_tr}
 echo "[train_faster_scheduler]  feats_cv: "${feats_cv}
@@ -137,7 +145,8 @@ for iter in $(seq -w ${max_iters}); do
   # set dropout-rate from the schedule,
   if [ -n ${dropout_array[$((${iter#0}-1))]-''} ]; then
     dropout_rate=${dropout_array[$((${iter#0}-1))]}
-    nnet-copy --dropout-rate=$dropout_rate $mlp_best ${mlp_best}.dropout_rate${dropout_rate}
+    echo "[dropout_rate] "${dropout_rate}
+    nnet-copy --dropout-rate=${dropout_rate} ${mlp_best} ${mlp_best}.dropout_rate${dropout_rate}
     mlp_best=${mlp_best}.dropout_rate${dropout_rate}
   fi
 

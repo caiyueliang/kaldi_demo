@@ -15,9 +15,10 @@ nj=8
 nnet_init=
 learn_rate=0.00001
 max_iters=20
-min_iters=14
-start_half_lr=6
+min_iters=10
+start_half_lr=5
 momentum=0.9
+dropout_schedule="0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2"
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
@@ -73,7 +74,7 @@ if [ ${feats_gen} -ne 0 ]; then
     echo "[run_dnn] Re-generate features data ..."
     case ${feats_type} in
         fbank)
-            # 生成MFCC特征，是40维FBank
+            # 生成FBank特征，是40维FBank
             echo "[run_dnn] use fbank ..."
             rm -rf ${data_fbk} && mkdir -p ${data_fbk} &&  cp -R data/{train,dev,test} ${data_fbk} || exit 1;
             for x in train dev test; do
@@ -105,13 +106,11 @@ fi
 # ======================================================================================================================
 #####CE-training
 echo "[FSMN] 5 =================================="
-if [ ${stage} -le 3 ]; then
+if [ ${stage} -le 2 ]; then
      if [ ! -d "${dir}" ]; then
          mkdir ${dir}
          mkdir ${dir}/decode_test_word
          mkdir ${dir}/decode_test_word/log
-         mkdir ${dir}/decode_test_phone
-         mkdir ${dir}/decode_test_phone/log
      fi
 
     # proto=local/nnet/${dnn_model}.proto
@@ -139,6 +138,7 @@ if [ ${stage} -le 3 ]; then
             steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
             --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
             --min_iters ${min_iters} \
+            --dropout_schedule ${dropout_schedule} \
             --train-tool "nnet-train-fsmn-streams" \
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
@@ -153,21 +153,20 @@ if [ ${stage} -le 3 ]; then
             steps/nnet/train_faster.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
             --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
             --min_iters ${min_iters} \
+            --dropout_schedule ${dropout_schedule} \
             --train-tool "nnet-train-fsmn-streams" \
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
             --train-tool-opts "--minibatch-size=4096" \
             ${data_fbk}/train ${data_fbk}/dev data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
     fi
+fi
 
+if [ ${stage} -le 3 ]; then
     # Decode
     echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
     steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
         ${gmmdir}/graph ${data_fbk}/test ${dir}/decode_test_word || exit 1;
-
-    # echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_phone"
-    # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
-    #     ${gmmdir}/graph_phone ${data_fbk}/test_phone ${dir}/decode_test_phone || exit 1;
 
  	for x in ${dir}/decode_*;
  	do
@@ -176,40 +175,9 @@ if [ ${stage} -le 3 ]; then
  	done
 fi
 
-####Decode
-echo "[FSMN] 6 =================================="
-#acwt=0.08
-#if [ $stage -le 4 ]; then
-#	# gmm=exp/tri6b_cleaned
-# 	gmm=${gmmdir}
-# 	# dataset="test_clean dev_clean test_other dev_other"
-# 	dataset="test dev"
-#   for set in ${dataset}
-#   do
-#       # 解码
-#       steps/nnet/decode.sh --nj 16 --cmd "$decode_cmd" --acwt ${acwt} \
-#	        ${gmm}/graph_tgsmall ${data_fbk}/${set} ${dir}/decode_tgsmall_${set}
-#
-#       steps/lmrescore.sh --cmd "$decode_cmd" data/lang_test_{tgsmall,tgmed} \
-#           $data_fbk/$set $dir/decode_{tgsmall,tgmed}_${set}
-#
-#		steps/lmrescore_const_arpa.sh \
-#         	--cmd "$decode_cmd" data/lang_test_{tgsmall,tglarge} \
-#           $data_fbk/$set $dir/decode_{tgsmall,tglarge}_${set}
-#
-# 		steps/lmrescore_const_arpa.sh \
-#         	--cmd "$decode_cmd" data/lang_test_{tgsmall,fglarge} \
-#         	$data_fbk/$set $dir/decode_{tgsmall,fglarge}_${set}
-#   done
-# 	for x in $dir/decode_*;
-# 	do
-#       grep WER $x/wer_* | utils/best_wer.sh
-# 	done
-#fi
-
 echo "[FSMN] 7 =================================="
 # gen ali & lat for smbr
-if [ ${stage} -le 5 ]; then
+if [ ${stage} -le 4 ]; then
     steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train data/lang ${dir} ${dir}_ali
     steps/nnet/make_denlats.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
         ${data_fbk}/train data/lang ${dir} ${dir}_denlats
@@ -218,7 +186,7 @@ fi
 echo "[FSMN] 8 =================================="
 ####do smbr
 if [ ${stage} -le 5 ]; then
-    steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 2 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
+    steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 1 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
         ${data_fbk}/train data/lang ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
 fi
 
@@ -232,7 +200,7 @@ echo "[FSMN] 9 acwt: "${acwt}
 if [ $stage -le 6 ]; then
     # gmm=exp/tri6b_cleaned
     # dataset="test_clean dev_clean test_other dev_other"
-    dataset="test dev"
+    dataset="test"
     for set in ${dataset}
     do
         # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
