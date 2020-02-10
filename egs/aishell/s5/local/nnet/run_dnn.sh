@@ -162,15 +162,21 @@ if [ ${stage} -le 2 ]; then
     fi
 fi
 
+echo "[FSMN] 6 =================================="
 if [ ${stage} -le 3 ]; then
     # Decode
-    echo "[FSMN][CE-training][Decode] dir: "${dir}"/decode_test_word"
-    steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
-        ${gmmdir}/graph ${data_fbk}/test ${dir}/decode_test_word || exit 1;
-
+    echo "[CE-training][Decode] dir: "${dir}"/decode_test_word"
+    # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
+    #     ${gmmdir}/graph ${data_fbk}/test ${dir}/decode_test_word || exit 1;
+    dataset="test dev"
+    for set in ${dataset}
+    do
+        steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
+            ${gmmdir}/graph ${data_fbk}/${set} ${dir}/decode_${set}_word || exit 1;
+    done
  	for x in ${dir}/decode_*;
  	do
- 	    echo "[FSMN][CE-training][best_wer] dir: "${x}
+ 	    echo "[CE-training][best_wer] dir: "${x}
         grep WER ${x}/wer_* | utils/best_wer.sh
  	done
 fi
@@ -193,31 +199,18 @@ fi
 ###decode
 echo "[FSMN] 9 =================================="
 dir=${dir}_smbr
-acwt=0.03
+# acwt=0.03
 echo "[FSMN] 9  dir: "${dir}
 echo "[FSMN] 9 acwt: "${acwt}
 
 if [ $stage -le 6 ]; then
-    # gmm=exp/tri6b_cleaned
-    # dataset="test_clean dev_clean test_other dev_other"
-    dataset="test"
+    dataset="test dev"
     for set in ${dataset}
     do
         # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
         #     ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
-        steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
+        steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
             ${gmmdir}/graph ${data_fbk}/${set} ${dir}/decode_${set}_word || exit 1;
-
-        # steps/lmrescore.sh --cmd "${decode_cmd}" data/lang_test_{tgsmall,tgmed} \
-        #     ${data_fbk}/${set} ${dir}/decode_{tgsmall,tgmed}_${set}
-
-        # steps/lmrescore_const_arpa.sh \
-        #     --cmd "${decode_cmd}" data/lang_test_{tgsmall,tglarge} \
-        #     ${data_fbk}/${set} ${dir}/decode_{tgsmall,tglarge}_${set}
-
-        # steps/lmrescore_const_arpa.sh \
-        #     --cmd "${decode_cmd}" data/lang_test_{tgsmall,fglarge} \
-        #     ${data_fbk}/${set} ${dir}/decode_{tgsmall,fglarge}_${set}
     done
 
     for x in ${dir}/decode_*;
