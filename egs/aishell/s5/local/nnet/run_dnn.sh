@@ -28,18 +28,18 @@ feats_type=fbank
 data_fbk=data/${feats_type}
 acwt=0.08
 
-echo "[FSMN][CE-training]           dir: "${dir}
-echo "[FSMN][CE-training]      cuda_cmd: "${cuda_cmd}
-echo "[FSMN][CE-training]     feats_gen: "${feats_gen}
-echo "[FSMN][CE-training]    feats_type: "${feats_type}
-echo "[FSMN][CE-training]    learn_rate: "${learn_rate}
-echo "[FSMN][CE-training]     max_iters: "${max_iters}
-echo "[FSMN][CE-training]     min_iters: "${min_iters}
-echo "[FSMN][CE-training] start_half_lr: "${start_half_lr}
-echo "[FSMN][CE-training]      momentum: "${momentum}
-echo "[FSMN][CE-training]     dnn_model: "${dnn_model}
-echo "[FSMN][CE-training]      data_fbk: "${data_fbk}
-echo "[FSMN][CE-training]          acwt: "${acwt}
+echo "[run_dnn.sh]           dir: "${dir}
+echo "[run_dnn.sh]      cuda_cmd: "${cuda_cmd}
+echo "[run_dnn.sh]     feats_gen: "${feats_gen}
+echo "[run_dnn.sh]    feats_type: "${feats_type}
+echo "[run_dnn.sh]    learn_rate: "${learn_rate}
+echo "[run_dnn.sh]     max_iters: "${max_iters}
+echo "[run_dnn.sh]     min_iters: "${min_iters}
+echo "[run_dnn.sh] start_half_lr: "${start_half_lr}
+echo "[run_dnn.sh]      momentum: "${momentum}
+echo "[run_dnn.sh]     dnn_model: "${dnn_model}
+echo "[run_dnn.sh]      data_fbk: "${data_fbk}
+echo "[run_dnn.sh]          acwt: "${acwt}
 
 . utils/parse_options.sh || exit 1;
 
@@ -52,24 +52,7 @@ echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
 echo "[run_dnn.sh] nnet_init: "${nnet_init}
 
 ### ======================================================================================================================
-#echo "[run_dnn.sh] 2 =================================="
-##generate fbanks  生成FBank特征，是40维FBank
-#if [ $stage -le 0 ]; then
-#  echo "DNN training: stage 0: feature generation"
-#  # rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test,test_phone} data/fbank || exit 1;
-#  rm -rf data/fbank && mkdir -p data/fbank &&  cp -R data/{train,dev,test} data/fbank || exit 1;
-#  for x in train dev test; do
-#    echo "producing fbank for $x"
-#    #fbank generation
-#    steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" data/fbank/${x} exp/make_fbank/${x} fbank/${x} || exit 1
-#    #ompute cmvn
-#    steps/compute_cmvn_stats.sh data/fbank/$x exp/fbank_cmvn/$x fbank/$x || exit 1
-#  done
-#
-#  echo "producing test_fbank_phone"
-#  cp data/fbank/test/feats.scp data/fbank/test_phone && cp data/fbank/test/cmvn.scp data/fbank/test_phone || exit 1;
-#fi
-
+echo "[run_dnn.sh] 0 =================================="
 if [ ${feats_gen} -ne 0 ]; then
     echo "[run_dnn] Re-generate features data ..."
     case ${feats_type} in
@@ -105,8 +88,8 @@ fi
 
 # ======================================================================================================================
 #####CE-training
-echo "[FSMN] 5 =================================="
-if [ ${stage} -le 2 ]; then
+echo "[run_dnn.sh] 1 =================================="
+if [ ${stage} -le 1 ]; then
      if [ ! -d "${dir}" ]; then
          mkdir ${dir}
          mkdir ${dir}/decode_test_word
@@ -162,8 +145,8 @@ if [ ${stage} -le 2 ]; then
     fi
 fi
 
-echo "[FSMN] 6 =================================="
-if [ ${stage} -le 3 ]; then
+echo "[run_dnn.sh] 2 =================================="
+if [ ${stage} -le 2 ]; then
     # Decode
     echo "[CE-training][Decode] dir: "${dir}"/decode_test_word"
     # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
@@ -181,29 +164,29 @@ if [ ${stage} -le 3 ]; then
  	done
 fi
 
-echo "[FSMN] 7 =================================="
+echo "[run_dnn.sh] 3 =================================="
 # gen ali & lat for smbr
-if [ ${stage} -le 4 ]; then
+if [ ${stage} -le 3 ]; then
     steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train data/lang ${dir} ${dir}_ali
     steps/nnet/make_denlats.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
         ${data_fbk}/train data/lang ${dir} ${dir}_denlats
 fi
 
-echo "[FSMN] 8 =================================="
+echo "[run_dnn.sh] 4 =================================="
 ####do smbr
-if [ ${stage} -le 5 ]; then
+if [ ${stage} -le 4 ]; then
     steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 1 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
         ${data_fbk}/train data/lang ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
 fi
 
 ###decode
-echo "[FSMN] 9 =================================="
+echo "[run_dnn.sh] 5 =================================="
 dir=${dir}_smbr
-# acwt=0.03
-echo "[FSMN] 9  dir: "${dir}
-echo "[FSMN] 9 acwt: "${acwt}
+acwt=0.03
+echo "[run_dnn.sh] 5  dir: "${dir}
+echo "[run_dnn.sh] 5 acwt: "${acwt}
 
-if [ $stage -le 6 ]; then
+if [ $stage -le 5 ]; then
     dataset="test dev"
     for set in ${dataset}
     do
@@ -215,7 +198,7 @@ if [ $stage -le 6 ]; then
 
     for x in ${dir}/decode_*;
     do
-        echo "[FSMN] 9 [best_wer] dir: "${x}
+        echo "[run_dnn.sh] 5 [best_wer] dir: "${x}
         grep WER ${x}/wer_* | utils/best_wer.sh
     done
 fi
