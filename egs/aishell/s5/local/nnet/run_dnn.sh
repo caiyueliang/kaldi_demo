@@ -54,13 +54,21 @@ echo "[run_dnn.sh]          acwt: "${acwt}
 gmmdir=$1
 alidir=$2
 alidir_cv=$3
-echo "[run_dnn.sh]    gmmdir: "${gmmdir}
-echo "[run_dnn.sh]    alidir: "${alidir}
-echo "[run_dnn.sh] alidir_cv: "${alidir_cv}
-echo "[run_dnn.sh] nnet_init: "${nnet_init}
+echo "[run_dnn.sh]     gmmdir: "${gmmdir}
+echo "[run_dnn.sh]     alidir: "${alidir}
+echo "[run_dnn.sh]  alidir_cv: "${alidir_cv}
+echo "[run_dnn.sh]  nnet_init: "${nnet_init}
 
 ### ======================================================================================================================
 echo "[run_dnn.sh] 0 =================================="
+# 根据使用的特征类型，选择对应的生成脚本
+if [ ${feats_type}=="fbank" ]; then
+    gen_sctipt="make_fbank.sh"
+else
+    gen_sctipt="make_mfcc_pitch.sh"
+fi
+echo "[run_dnn.sh] gen_sctipt: "${gen_sctipt}
+
 if [ ${feats_gen} -ne 0 ]; then
     echo "[run_dnn.sh] Re-generate features data ..."
 
@@ -68,62 +76,82 @@ if [ ${feats_gen} -ne 0 ]; then
 
     if [ ${data_en} -ne 0 ]; then
         # 添加音速扰动
+        # DFSMN的输出目录是：data/fbank/train_sp/ ...
         echo "[run_dnn.sh] need train data enhance ..."
+        echo "[run_dnn.sh] ============================================ "
         echo "$0: preparing directory for speed-perturbed data"
-        utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} data/${train_set}_sp || exit 1;
+        utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} ${data_fbk}/${train_set}_sp || exit 1;
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
+        steps/compute_cmvn_stats.sh ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
+        utils/fix_data_dir.sh ${data_fbk}/${train_set}_sp;
+        new_train_set=${train_set}_sp
+        train_set=${new_train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+
         # 加音量扰动
-        utils/copy_data_dir.sh data/${train_set}_sp data/${train_set}_sp_hires || exit 1;
-        utils/data/perturb_data_dir_volume.sh data/${train_set}_sp_hires || exit 1;
-        new_train_set=${train_set}_sp_hires
-        train_set=${train_set}
-        echo "[run_dnn.sh] new train set : "${train_set}
+        echo "[run_dnn.sh] ============================================ "
+#        for datadir in ${train_set}_sp ${test_sets}; do
+#            utils/copy_data_dir.sh data/$datadir data/${datadir}_hires
+#        done
+#
+#        # do volume-perturbation on the training data prior to extracting hires
+#        # features; this helps make trained nnets more invariant to test data volume.
+#        utils/data/perturb_data_dir_volume.sh data/${train_set}_sp_hires || exit 1;
+#
+#        for datadir in ${train_set}_sp ${test_sets}; do
+#            steps/make_mfcc_pitch.sh --nj 10 --mfcc-config conf/mfcc_hires.conf \
+#              --cmd "$train_cmd" data/${datadir}_hires exp/make_hires/$datadir $mfccdir || exit 1;
+#            steps/compute_cmvn_stats.sh data/${datadir}_hires exp/make_hires/$datadir $mfccdir || exit 1;
+#            utils/fix_data_dir.sh data/${datadir}_hires || exit 1;
+#            # create MFCC data dir without pitch to extract iVector
+#            # utils/data/limit_feature_dim.sh 0:39 data/${datadir}_hires data/${datadir}_hires_nopitch || exit 1;
+#            steps/compute_cmvn_stats.sh data/${datadir}_hires_nopitch exp/make_hires/$datadir $mfccdir || exit 1;
+#        done
+        utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1;
+        utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1;
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_hires exp/make_${feats_type}_log/${train_set}_hires ${feats_type}/${train_set}_hires || exit 1
+        steps/compute_cmvn_stats.sh ${data_fbk}/${train_set}_hires exp/make_${feats_type}_log/${train_set}_hires ${feats_type}/${train_set}_hires || exit 1
+        utils/fix_data_dir.sh ${data_fbk}/${train_set}_hires;
+
+        new_train_set=${train_set}_hires
+        train_set=${new_train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
     fi
 
-    case ${feats_type} in
-        fbank)
-            # 生成FBank特征，是40维FBank
-            echo "[run_dnn.sh] use fbank ..."
-            # cp -R data/{train,dev,test} ${data_fbk} || exit 1;
-            cp -R data/${train_set} ${data_fbk} || exit 1;
-            cp -R data/${dev_set} ${data_fbk} || exit 1;
-            cp -R data/${test_set} ${data_fbk} || exit 1;
-            # ==========================================================================================================
-            # data_fbk=data/fbank
-            # train_dir=data/fbank/train
-            # train_dir=data/fbank/train_sp_hires
-            # dev_dir=data/fbank/dev
-            # test_dir=data/fbank/test
-            # for x in train dev test; do
-            #     echo "[run_dnn.sh] producing fbank for ${x}"
-            #     # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${fbankdir}
-            #     steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-            #     steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-            # done
-            for x in ${train_set} ${dev_set} ${test_set}; do
-                echo "[run_dnn.sh] producing fbank for ${x}"
-                # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${fbankdir}
-                steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-                steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-            done
-            ;;
-        mfcc)
-            # 生成MFCC特征
-            echo "[run_dnn.sh] use mfcc ..."
-            # cp -R data/{train,dev,test} ${data_fbk} || exit 1;
-            cp -R data/${train_set} ${data_fbk} || exit 1;
-            cp -R data/${dev_set} ${data_fbk} || exit 1;
-            cp -R data/${test_set} ${data_fbk} || exit 1;
-            # ==========================================================================================================
-            for x in ${train_set} ${dev_set} ${test_set}; do
-                echo "[run_dnn.sh] producing mfcc for ${x}"
-                # steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${mfccdir}
-                steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1;
-                steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_mfcc_log/${x} mfcc/${x} || exit 1
-            done
-            ;;
-        *)
-            echo "[ERROR] Invalid feats_type ${feats_type} ..."; exit 1;;
-    esac
+    # 生成FBank特征，是40维FBank
+    echo "[run_dnn.sh] use fbank ..."
+    # cp -R data/{train,dev,test} ${data_fbk} || exit 1;
+    # cp -R data/${train_set} ${data_fbk} || exit 1;
+    cp -R data/${dev_set} ${data_fbk} || exit 1;
+    cp -R data/${test_set} ${data_fbk} || exit 1;
+    # ==========================================================================================================
+    # data_fbk=data/fbank
+    # train_dir=data/fbank/train
+    # train_dir=data/fbank/train_sp_hires
+    # dev_dir=data/fbank/dev
+    # test_dir=data/fbank/test
+    # for x in train dev test; do
+    #     echo "[run_dnn.sh] producing fbank for ${x}"
+    #     # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${fbankdir}
+    #     steps/make_fbank.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+    #     steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
+    # done
+    for x in ${dev_set} ${test_set}; do
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] producing "${feats_type}" for "${x}
+        # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${fbankdir}
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
+        steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
+    done
+else
+    if [ ${data_en} -ne 0 ]; then
+        new_train_set=${train_set}_sp_hires
+        train_set=${new_train_set}
+        echo "[run_dnn.sh] new train set : "${train_set}
+    fi
 fi
 
 
@@ -227,8 +255,9 @@ echo "[run_dnn.sh] 5 acwt: "${acwt}
 
 if [ $stage -le 5 ]; then
     # dataset="test dev"
-    # for set in ${test_set} ${dev_set} ; do
-    for set in ${dev_set} ; do
+    for set in ${test_set} ${dev_set} ; do
+        # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
+        #     ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
         steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
             ${gmmdir}/graph ${data_fbk}/${set} ${dir}/decode_${set}_word || exit 1;
     done
