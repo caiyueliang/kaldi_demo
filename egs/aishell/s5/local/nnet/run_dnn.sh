@@ -227,9 +227,8 @@ echo "[run_dnn.sh] 5 acwt: "${acwt}
 
 if [ $stage -le 5 ]; then
     # dataset="test dev"
-    for set in ${test_set} ${dev_set} ; do
-        # steps/nnet/decode.sh --nj $nj --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
-        #     ${gmmdir}/graph_word ${data_fbk}/test ${dir}/decode_test_word || exit 1;
+    # for set in ${test_set} ${dev_set} ; do
+    for set in ${dev_set} ; do
         steps/nnet/decode.sh --nj ${nj} --cmd "${decode_cmd}" --srcdir ${dir} --acwt ${acwt} \
             ${gmmdir}/graph ${data_fbk}/${set} ${dir}/decode_${set}_word || exit 1;
     done
