@@ -29,7 +29,8 @@ data_fbk=data/${feats_type}
 train_set=train
 dev_set=dev
 test_set=test
-data_en=1
+speed_perturb=1
+volume_perturb=1
 acwt=0.08
 lang=data/lang
 
@@ -42,12 +43,14 @@ echo "[run_dnn.sh]     max_iters: "${max_iters}
 echo "[run_dnn.sh]     min_iters: "${min_iters}
 echo "[run_dnn.sh] start_half_lr: "${start_half_lr}
 echo "[run_dnn.sh]      momentum: "${momentum}
+echo "[run_dnn.sh]       dropout: "${dropout_schedule}
 echo "[run_dnn.sh]     dnn_model: "${dnn_model}
 echo "[run_dnn.sh]      data_fbk: "${data_fbk}
 echo "[run_dnn.sh]     train_set: "${train_set}
 echo "[run_dnn.sh]       dev_set: "${dev_set}
 echo "[run_dnn.sh]      test_set: "${test_set}
-echo "[run_dnn.sh]       data_en: "${data_en}
+echo "[run_dnn.sh] speed_perturb: "${speed_perturb}
+echo "[run_dnn.sh]volume_perturb: "${volume_perturb}
 echo "[run_dnn.sh]          acwt: "${acwt}
 echo "[run_dnn.sh]          lang: "${lang}
 
@@ -74,23 +77,13 @@ echo "[run_dnn.sh] gen_sctipt: "${gen_sctipt}
 if [ ${feats_gen} -ne 0 ]; then
     echo "[run_dnn.sh] Re-generate features data ..."
 
-    # rm -rf ${data_fbk} && mkdir -p ${data_fbk} || exit 1;
-    # cp -R data/${train_set} ${data_fbk} || exit 1;
-    # cp -R data/${dev_set} ${data_fbk} || exit 1;
-    # cp -R data/${test_set} ${data_fbk} || exit 1;
-    # for x in train dev test; do
-    #     echo "producing fbank for ${x}"
-    #     steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-    #     steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_fbank_log/${x} fbank/${x} || exit 1
-    # done
-
-    if [ ${data_en} -ne 0 ]; then
-        # 添加音速扰动
+    # 添加音速扰动
+    if [ ${speed_perturb} -ne 0 ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
-        echo "[run_dnn.sh] need train data enhance ..."
         echo "[run_dnn.sh] ============================================ "
         echo "$0: preparing directory for speed-perturbed data"
+        echo "[run_dnn.sh] ============================================ "
         utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} ${data_fbk}/${train_set}_sp || exit 1;
         steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
         steps/compute_cmvn_stats.sh ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
@@ -103,13 +96,19 @@ if [ ${feats_gen} -ne 0 ]; then
 
         # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
         alidir=${gmmdir}_sp_ali
-        echo "[run_dnn.sh] new alidir set : "${alidir}
         echo "$0: aligning with the perturbed low-resolution data"
         steps/align_fmllr.sh --nj ${nj} --cmd "$train_cmd" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new alidir set : "${alidir}
+        echo "[run_dnn.sh] ============================================ "
+    fi
 
-        # 加音量扰动gmm_dir
+    # 添加音量扰动
+    if [ ${volume_perturb} -ne 0 ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp_hires ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp_hires ...
+        echo "[run_dnn.sh] ============================================ "
+        echo "$0: preparing directory for volume-perturbed data"
         echo "[run_dnn.sh] ============================================ "
         utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1;
         utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1;
@@ -150,12 +149,25 @@ if [ ${feats_gen} -ne 0 ]; then
         steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
     done
 else
-    if [ ${data_en} -ne 0 ]; then
-        new_train_set=${train_set}_sp_hires
+    # 有加音速扰动
+    if [ ${speed_perturb} -ne 0 ]; then
+        new_train_set=${train_set}_sp
         train_set=${new_train_set}
-        echo "[run_dnn.sh] new train set : "${train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
         alidir=${gmmdir}_sp_ali
+        echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new alidir set : "${alidir}
+        echo "[run_dnn.sh] ============================================ "
+    fi
+    # 有加音量扰动
+    if [ ${volume_perturb} -ne 0 ]; then
+        new_train_set=${train_set}_hires
+        train_set=${new_train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
     fi
 fi
 
