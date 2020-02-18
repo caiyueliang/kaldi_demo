@@ -29,8 +29,11 @@ data_fbk=data/${feats_type}
 train_set=train
 dev_set=dev
 test_set=test
-speed_perturb=1
-volume_perturb=1
+speed_perturb=1                         # 音速扰动标志位
+volume_perturb=1                        # 音量扰动标志位
+reverberate_data=1                      # 混响数据标志位
+num_data_reps=1                         # 数据复制的次数，默认为1
+sample_frequency=16000
 acwt=0.08
 lang=data/lang
 
@@ -51,6 +54,8 @@ echo "[run_dnn.sh]       dev_set: "${dev_set}
 echo "[run_dnn.sh]      test_set: "${test_set}
 echo "[run_dnn.sh] speed_perturb: "${speed_perturb}
 echo "[run_dnn.sh]volume_perturb: "${volume_perturb}
+echo "[run_dnn.sh]   reverberate: "${reverberate_data}
+echo "[run_dnn.sh] num_data_reps: "${num_data_reps}
 echo "[run_dnn.sh]          acwt: "${acwt}
 echo "[run_dnn.sh]          lang: "${lang}
 
@@ -82,7 +87,7 @@ if [ ${feats_gen} -ne 0 ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
         echo "[run_dnn.sh] ============================================ "
-        echo "$0: preparing directory for speed-perturbed data"
+        echo "$0: creating speed-perturbed data ..."
         echo "[run_dnn.sh] ============================================ "
         utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} ${data_fbk}/${train_set}_sp || exit 1;
         steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
@@ -108,7 +113,7 @@ if [ ${feats_gen} -ne 0 ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp_hires ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp_hires ...
         echo "[run_dnn.sh] ============================================ "
-        echo "$0: preparing directory for volume-perturbed data"
+        echo "$0: creating volume-perturbed data ..."
         echo "[run_dnn.sh] ============================================ "
         utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1;
         utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1;
@@ -117,6 +122,70 @@ if [ ${feats_gen} -ne 0 ]; then
         utils/fix_data_dir.sh ${data_fbk}/${train_set}_hires;
 
         new_train_set=${train_set}_hires
+        train_set=${new_train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
+    fi
+
+    # 添加混响
+    if [ ${reverberate_data} -ne 0 ]; then
+        # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
+        # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
+        echo "[run_dnn.sh] ============================================ "
+        echo "$0: creating reverberated data ..."
+        echo "[run_dnn.sh] ============================================ "
+        # 输入目录应该时加了音速扰动后的输出目录，如s5/data/{fbank|mfcc}/train_sp
+        # datadir=data/ihm/train_cleaned_sp
+        src_dir=train_sp
+        datadir=${data_fbk}/${src_dir}
+        rvb_opts=()
+        rvb_opts+=(--rir-set-parameters "0.5, RIRS_NOISES/simulated_rirs/smallroom/rir_list")
+        rvb_opts+=(--rir-set-parameters "0.5, RIRS_NOISES/simulated_rirs/mediumroom/rir_list")
+        rvb_opts+=(--noise-set-parameters RIRS_NOISES/pointsource_noises/noise_list)
+
+        # 输入目录是s5/data/ihm/train_cleaned_sp(上面的音量扰动后的输出)，输出目录是s5/data/ihm/train_cleaned_sp_rvb1
+        python steps/data/reverberate_data_dir.py \
+          "${rvb_opts[@]}" \
+          --prefix "rev" \
+          --foreground-snrs "20:10:15:5:0" \
+          --background-snrs "20:10:15:5:0" \
+          --speech-rvb-probability 1 \
+          --pointsource-noise-addition-probability 1 \
+          --isotropic-noise-addition-probability 1 \
+          --num-replications ${num_data_reps} \
+          --max-noises-per-minute 1 \
+          --source-sampling-rate ${sample_frequency} \
+          ${data_fbk}/${src_dir} ${data_fbk}/${src_dir}_rvb${num_data_reps} || exit 1
+
+        utils/copy_data_dir.sh ${data_fbk}/${src_dir}_rvb${num_data_reps} \
+            ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires || exit 1
+        # 在完混响后，再加音量扰动，输入|输出目录是s5/data/ihm/train_cleaned_sp_rvb1_hires || exit 1
+        utils/data/perturb_data_dir_volume.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires || exit 1
+
+        # steps/${gen_sctipt} --nj ${nj} --mfcc-config conf/mfcc_hires.conf --cmd "$train_cmd" \
+        #   ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires \
+            exp/make_${feats_type}_log/${src_dir}_rvb${num_data_reps}_hires ${feats_type}/${src_dir}_rvb${num_data_reps}_hires || exit 1
+        # steps/compute_cmvn_stats.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
+        steps/compute_cmvn_stats.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires \
+            exp/make_${feats_type}_log/${src_dir}_rvb${num_data_reps}_hires ${feats_type}/${src_dir}_rvb${num_data_reps}_hires || exit 1
+        utils/fix_data_dir.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
+
+        # combine_short_segments.sh 先不做
+        # # 输出目录是s5/data/ihm/train_cleaned_sp_rvb1_hires_comb
+        # utils/data/combine_short_segments.sh \
+        #     ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires $min_seg_len ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires_comb
+        #
+        # # just copy over the CMVN to avoid having to recompute it.只需复制CMVN以避免重新计算它。
+        # cp ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires/cmvn.scp ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires_comb/
+        # utils/fix_data_dir.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires_comb/
+
+        # 合并数据，第一个目录是目标目录，后面可跟多个源目录。
+        # 输出目录是：s5/data/ihm/train_cleaned_sp_rvb_hires，输入是s5/data/ihm/train_cleaned_sp_hires和s5/data/ihm/train_cleaned_sp_rvb1_hires
+        utils/combine_data.sh ${data_fbk}/${train_set}_rvb ${data_fbk}/${train_set} ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
+
+        new_train_set=${train_set}_rvb
         train_set=${new_train_set}
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
@@ -164,6 +233,14 @@ else
     # 有加音量扰动
     if [ ${volume_perturb} -ne 0 ]; then
         new_train_set=${train_set}_hires
+        train_set=${new_train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
+    fi
+    # 添加混响
+    if [ ${reverberate_data} -ne 0 ]; then
+        new_train_set=${train_set}_rvb
         train_set=${new_train_set}
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
