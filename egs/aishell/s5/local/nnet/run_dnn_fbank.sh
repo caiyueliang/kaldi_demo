@@ -16,9 +16,9 @@ nnet_init=
 learn_rate=0.00001
 max_iters=20
 min_iters=0
-start_half_lr=5
+start_half_lr=3
 momentum=0.9
-dropout_schedule="0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2"
+dropout_schedule="0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3"
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
 dir=exp/tri7b_${dnn_model}
@@ -31,6 +31,7 @@ dev_set=dev
 test_set=test
 data_en=1
 acwt=0.08
+lang=data/lang
 
 echo "[run_dnn.sh]           dir: "${dir}
 echo "[run_dnn.sh]      cuda_cmd: "${cuda_cmd}
@@ -48,6 +49,7 @@ echo "[run_dnn.sh]       dev_set: "${dev_set}
 echo "[run_dnn.sh]      test_set: "${test_set}
 echo "[run_dnn.sh]       data_en: "${data_en}
 echo "[run_dnn.sh]          acwt: "${acwt}
+echo "[run_dnn.sh]          lang: "${lang}
 
 . utils/parse_options.sh || exit 1;
 
@@ -84,7 +86,8 @@ if [ ${feats_gen} -ne 0 ]; then
 
     if [ ${data_en} -ne 0 ]; then
         # 添加音速扰动
-        # DFSMN的输出目录是：data/fbank/train_sp/ ...
+        # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
+        # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
         echo "[run_dnn.sh] need train data enhance ..."
         echo "[run_dnn.sh] ============================================ "
         echo "$0: preparing directory for speed-perturbed data"
@@ -98,13 +101,15 @@ if [ ${feats_gen} -ne 0 ]; then
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
         echo "[run_dnn.sh] ============================================ "
 
-        # 数据对齐
+        # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
         alidir=${gmmdir}_sp_ali
         echo "[run_dnn.sh] new alidir set : "${alidir}
         echo "$0: aligning with the perturbed low-resolution data"
-        steps/align_fmllr.sh --nj ${nj} --cmd "$train_cmd" ${data_fbk}/${train_set} data/lang ${gmmdir} ${alidir} || exit 1
+        steps/align_fmllr.sh --nj ${nj} --cmd "$train_cmd" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
 
         # 加音量扰动gmm_dir
+        # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp_hires ...
+        # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp_hires ...
         echo "[run_dnn.sh] ============================================ "
         utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1;
         utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1;
@@ -159,12 +164,6 @@ fi
 # CE-training
 echo "[run_dnn.sh] 1 =================================="
 if [ ${stage} -le 1 ]; then
-    # if [ ! -d "${dir}" ]; then
-    #     mkdir ${dir}
-    #     mkdir ${dir}/decode_test_word
-    #     mkdir ${dir}/decode_test_word/log
-    # fi
-
     # proto=local/nnet/${dnn_model}.proto
     proto=local/nnet/${dnn_model}"_"${feats_type}.proto
     echo "[run_dnn.sh]    proto: "${proto}
@@ -197,7 +196,7 @@ if [ ${stage} -le 1 ]; then
             --train-tool-opts "--minibatch-size=4096" \
             --nnet_init ${nnet_init} \
             --skip_phoneset_check "true" \
-            ${data_fbk}/${train_set} ${data_fbk}/${dev_set} data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+            ${data_fbk}/${train_set} ${data_fbk}/${dev_set} ${lang} ${alidir} ${alidir_cv} ${dir} || exit 1;
     else
         echo "[run_dnn.sh] 不使用预训练模型进行训练 ... "
         # 执行脚本train_faster.sh
@@ -210,8 +209,7 @@ if [ ${stage} -le 1 ]; then
             --feat-type plain --splice 1 \
             --cmvn-opts "--norm-means=true --norm-vars=false" --delta_opts "--delta-order=2" \
             --train-tool-opts "--minibatch-size=4096" \
-            ${data_fbk}/${train_set} ${data_fbk}/${dev_set} data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
-            # ${data_fbk}/${train_set} ${data_fbk}/${dev_set} data/lang ${alidir} ${alidir_cv} ${dir} || exit 1;
+            ${data_fbk}/${train_set} ${data_fbk}/${dev_set} ${lang} ${alidir} ${alidir_cv} ${dir} || exit 1;
     fi
 fi
 
@@ -235,16 +233,16 @@ fi
 echo "[run_dnn.sh] 3 =================================="
 # gen ali & lat for smbr
 if [ ${stage} -le 3 ]; then
-    steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} data/lang ${dir} ${dir}_ali
+    steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${dir} ${dir}_ali
     steps/nnet/make_denlats.sh --nj ${nj} --cmd "${decode_cmd}" --acwt ${acwt} \
-        ${data_fbk}/${train_set} data/lang ${dir} ${dir}_denlats
+        ${data_fbk}/${train_set} ${lang} ${dir} ${dir}_denlats
 fi
 
 echo "[run_dnn.sh] 4 =================================="
 ####do smbr
 if [ ${stage} -le 4 ]; then
     steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 1 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
-        ${data_fbk}/${train_set} data/lang ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
+        ${data_fbk}/${train_set} ${lang} ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
 fi
 
 ###decode
@@ -267,59 +265,3 @@ if [ $stage -le 5 ]; then
         grep WER ${x}/wer_* | utils/best_wer.sh
     done
 fi
-
-
-# ======================================================================================================================
-# echo "[run_dnn.sh] 3 =================================="
-# #xEnt training
-# if [ $stage -le 1 ]; then
-#   outdir=exp/tri4b_dnn
-#   #NN training
-#   (tail --pid=$$ -F $outdir/log/train_nnet.log 2>/dev/null)& # forward log
-#   $cuda_cmd $outdir/log/train_nnet.log \
-#     steps/nnet/train.sh --copy_feats false --cmvn-opts "--norm-means=true --norm-vars=false" --hid-layers 4 --hid-dim 1024 \
-#     --learn-rate 0.008 data/fbank/train data/fbank/dev data/lang $alidir $alidir_cv $outdir || exit 1;
-#   #Decode (reuse HCLG graph in gmmdir)
-#   (
-#     steps/nnet/decode.sh --nj $nj --cmd "$decode_cmd" --srcdir $outdir --config conf/decode_dnn.config --acwt 0.1 \
-#       $gmmdir/graph_word data/fbank/test $outdir/decode_test_word || exit 1;
-#   )&
-#   (
-#    steps/nnet/decode.sh --nj $nj --cmd "$decode_cmd" --srcdir $outdir --config conf/decode_dnn.config --acwt 0.1 \
-#      $gmmdir/graph_phone data/fbank/test_phone $outdir/decode_test_phone || exit 1;
-#   )&
-#
-# fi
-
-# echo "[run_dnn.sh] 4 =================================="
-# #MPE training
-
-# srcdir=exp/tri4b_dnn
-# acwt=0.1
-#
-# if [ $stage -le 2 ]; then
-#   # generate lattices and alignments
-#   steps/nnet/align.sh --nj $nj --cmd "$train_cmd" \
-#     data/fbank/train data/lang $srcdir ${srcdir}_ali || exit 1;
-#   steps/nnet/make_denlats.sh --nj $nj --cmd "$decode_cmd" --config conf/decode_dnn.config --acwt $acwt \
-#     data/fbank/train data/lang $srcdir ${srcdir}_denlats || exit 1;
-# fi
-#
-# echo "[run_dnn.sh] 5 =================================="
-# if [ $stage -le 3 ]; then
-#   outdir=exp/tri4b_dnn_mpe
-#   #Re-train the DNN by 3 iteration of MPE 训练dnn的序列辨别MEP/sMBR。
-#   steps/nnet/train_mpe.sh --cmd "$cuda_cmd" --num-iters 3 --acwt $acwt --do-smbr false \
-#     data/fbank/train data/lang $srcdir ${srcdir}_ali ${srcdir}_denlats $outdir || exit 1
-#   #Decode (reuse HCLG graph)
-#   for ITER in 3 2 1; do
-#    (
-#     steps/nnet/decode.sh --nj $nj --cmd "$decode_cmd" --nnet $outdir/${ITER}.nnet --config conf/decode_dnn.config --acwt $acwt \
-#       $gmmdir/graph_word data/fbank/test $outdir/decode_test_word_it${ITER} || exit 1;
-#    )&
-#    (
-#    steps/nnet/decode.sh --nj $nj --cmd "$decode_cmd" --nnet $outdir/${ITER}.nnet --config conf/decode_dnn.config --acwt $acwt \
-#      $gmmdir/graph_phone data/fbank/test_phone $outdir/decode_test_phone_it${ITER} || exit 1;
-#    )&
-#   done
-# fi
