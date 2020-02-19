@@ -91,10 +91,10 @@ if [ ${feats_gen} -ne 0 ]; then
         echo "[run_dnn.sh] ============================================ "
         echo "$0: creating speed-perturbed data ..."
         echo "[run_dnn.sh] ============================================ "
-        utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} ${data_fbk}/${train_set}_sp || exit 1;
+        utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} ${data_fbk}/${train_set}_sp || exit 1
         steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
         steps/compute_cmvn_stats.sh ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
-        utils/fix_data_dir.sh ${data_fbk}/${train_set}_sp;
+        utils/fix_data_dir.sh ${data_fbk}/${train_set}_sp || exit 1
         new_train_set=${train_set}_sp
         train_set=${new_train_set}
         echo "[run_dnn.sh] ============================================ "
@@ -104,7 +104,7 @@ if [ ${feats_gen} -ne 0 ]; then
         # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
         alidir=${gmmdir}_sp_ali
         echo "$0: aligning with the perturbed low-resolution data"
-        steps/align_fmllr.sh --nj ${nj} --cmd "$train_cmd" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
+        steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new alidir set : "${alidir}
         echo "[run_dnn.sh] ============================================ "
@@ -117,11 +117,11 @@ if [ ${feats_gen} -ne 0 ]; then
         echo "[run_dnn.sh] ============================================ "
         echo "$0: creating volume-perturbed data ..."
         echo "[run_dnn.sh] ============================================ "
-        utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1;
-        utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1;
+        utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1
+        utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1
         steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_hires exp/make_${feats_type}_log/${train_set}_hires ${feats_type}/${train_set}_hires || exit 1
         steps/compute_cmvn_stats.sh ${data_fbk}/${train_set}_hires exp/make_${feats_type}_log/${train_set}_hires ${feats_type}/${train_set}_hires || exit 1
-        utils/fix_data_dir.sh ${data_fbk}/${train_set}_hires;
+        utils/fix_data_dir.sh ${data_fbk}/${train_set}_hires || exit 1
 
         new_train_set=${train_set}_hires
         train_set=${new_train_set}
@@ -171,7 +171,7 @@ if [ ${feats_gen} -ne 0 ]; then
         # steps/compute_cmvn_stats.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
         steps/compute_cmvn_stats.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires \
             exp/make_${feats_type}_log/${src_dir}_rvb${num_data_reps}_hires ${feats_type}/${src_dir}_rvb${num_data_reps}_hires || exit 1
-        utils/fix_data_dir.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
+        utils/fix_data_dir.sh ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires || exit 1
 
         # combine_short_segments.sh 先不做
         # # 输出目录是s5/data/ihm/train_cleaned_sp_rvb1_hires_comb
@@ -184,7 +184,7 @@ if [ ${feats_gen} -ne 0 ]; then
 
         # 合并数据，第一个目录是目标目录，后面可跟多个源目录。
         # 输出目录是：s5/data/ihm/train_cleaned_sp_rvb_hires，输入是s5/data/ihm/train_cleaned_sp_hires和s5/data/ihm/train_cleaned_sp_rvb1_hires
-        utils/combine_data.sh ${data_fbk}/${train_set}_rvb ${data_fbk}/${train_set} ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires
+        utils/combine_data.sh ${data_fbk}/${train_set}_rvb ${data_fbk}/${train_set} ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires || exit 1
 
         new_train_set=${train_set}_rvb
         train_set=${new_train_set}
@@ -213,12 +213,24 @@ if [ ${feats_gen} -ne 0 ]; then
 
         python steps/data/augment_data_dir.py --utt-suffix "noise" --fg-interval 1 --fg-snrs "15:10:5:0" \
             --fg-noise-dir "data/musan_noise" ${data_fbk}/${src_dir} ${data_fbk}/train_noise || exit 1
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train_noise \
+            exp/make_${feats_type}_log/train_noise ${feats_type}/train_noise || exit 1
+        steps/compute_cmvn_stats.sh ${data_fbk}/train_noise exp/make_${feats_type}_log/train_noise \
+            ${feats_type}/train_noise || exit 1
+        utils/fix_data_dir.sh ${feats_type}/train_noise || exit 1
+
         # python steps/data/augment_data_dir.py --utt-suffix "music" --bg-snrs "15:10:8:5" --num-bg-noises "1" \
         #   --bg-noise-dir "data/musan_music" ${data_fbk}/${src_dir} ${data_fbk}/train_music || exit 1
+
         python steps/data/augment_data_dir.py --utt-suffix "babble" --bg-snrs "20:17:15:13" --num-bg-noises "3:4:5:6:7"\
             --bg-noise-dir "data/musan_speech" ${data_fbk}/${src_dir} ${data_fbk}/train_babble || exit 1
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train_babble \
+            exp/make_${feats_type}_log/train_babble ${feats_type}/train_babble || exit 1
+        steps/compute_cmvn_stats.sh ${data_fbk}/train_babble exp/make_${feats_type}_log/train_babble \
+            ${feats_type}/train_babble || exit 1
+        utils/fix_data_dir.sh ${feats_type}/train_babble || exit 1
 
-        # 合并添加了加性噪声的多个数据集。输出目录是data/train_aug，剩下的都是源目录（包括混响的目录）
+        # 合并添加了加性噪声的多个数据集。输出目录是data/{fbank|mfcc}/train_aug，剩下的都是源目录（包括混响的目录）
         utils/combine_data.sh ${data_fbk}/train_aug ${data_fbk}/train_noise ${data_fbk}/train_babble \
             ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires || exit 1
 
@@ -230,13 +242,13 @@ if [ ${feats_gen} -ne 0 ]; then
         start_time=`date +"%Y-%m-%d %H:%M:%S"`
         echo "[run_dnn.sh] end time: "${start_time}
 
-        # 生成mfcc特征
-        # steps/make_mfcc.sh  --nj 40 --cmd "$train_cmd" data/train_aug_sub exp/make_mfcc $mfccdir
-        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train_aug_sub \
-            exp/make_${feats_type}_log/train_aug_sub ${feats_type}/train_aug_sub || exit 1
-        steps/compute_cmvn_stats.sh ${data_fbk}/train_aug_sub exp/make_${feats_type}_log/train_aug_sub \
-            ${feats_type}/train_aug_sub || exit 1
-        utils/fix_data_dir.sh ${feats_type}/train_aug_sub || exit 1
+        # # 生成mfcc特征，改成在上面生成
+        # # steps/make_mfcc.sh  --nj 40 --cmd "$train_cmd" data/train_aug_sub exp/make_mfcc $mfccdir
+        # steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train_aug_sub \
+        #     exp/make_${feats_type}_log/train_aug_sub ${feats_type}/train_aug_sub || exit 1
+        # steps/compute_cmvn_stats.sh ${data_fbk}/train_aug_sub exp/make_${feats_type}_log/train_aug_sub \
+        #     ${feats_type}/train_aug_sub || exit 1
+        # utils/fix_data_dir.sh ${feats_type}/train_aug_sub || exit 1
 
         # 合并音量扰动后的数据和加了噪声后的数据子集（包括混响）。最终生成的数据名称是${data_fbk}/train_aug_combined
         utils/combine_data.sh ${data_fbk}/train_aug_combined ${data_fbk}/train_aug_sub ${data_fbk}/${train_set} || exit 1
