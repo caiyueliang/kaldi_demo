@@ -14,7 +14,8 @@
 
 # data=/export/a05/xna/data
 # data=/data/ASR/ChineseData/AISHELL
-data=/home/rd/caiyueliang/DeepSpeechRecognition/data
+data=/home/rd/caiyueliang/data/AISHELL
+# data=/home/rd/caiyueliang/data/AISHELL_EN
 data_url=www.openslr.org/resources/33
 
 . ./cmd.sh
@@ -25,8 +26,8 @@ echo "[RUN] data: "${data}
 echo "[RUN]   nj: "${nj}
 
 echo "[RUN] 1 =================================="
-local/download_and_untar.sh $data $data_url data_aishell || exit 1;
-local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
+# local/download_and_untar.sh $data $data_url data_aishell || exit 1;
+# local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
 
 echo "[RUN] 2 =================================="
 # Lexicon Preparation, 词典准备
@@ -35,6 +36,7 @@ local/aishell_prepare_dict.sh $data/resource_aishell || exit 1;
 # Data Preparation, 数据准备
 local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript || exit 1;
 
+# ======================================================================================================================
 # Phone Sets, questions, L compilation
 utils/prepare_lang.sh --position-dependent-phones false data/local/dict \
     "<SPOKEN_NOISE>" data/local/lang data/lang || exit 1;
@@ -52,13 +54,17 @@ echo "[RUN] 5 =================================="
 # Now make MFCC plus pitch features. 生成 MFCC 特征
 # mfccdir should be some place with a largish disk where you
 # want to store MFCC features.
-mfccdir=mfcc
+# mfccdir=mfcc/base
+mfccdir=fbank/base
 for x in train dev test; do
-  steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
-  steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${mfccdir} || exit 1;
-  utils/fix_data_dir.sh data/${x} || exit 1;
+  # steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
+  # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
+  steps/make_fbank_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
+  steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
+  utils/fix_data_dir.sh data/${x}_${x} || exit 1;
 done
 
+# ======================================================================================================================
 echo "[RUN] 6 =================================="
 # 单音素模型训练
 steps/train_mono.sh --cmd "${train_cmd}" --nj ${nj} data/train data/lang exp/mono || exit 1;
@@ -77,7 +83,7 @@ steps/align_si.sh --cmd "$train_cmd" --nj ${nj} \
   data/train data/lang exp/mono exp/mono_ali || exit 1;
 
 echo "[RUN] 9 =================================="
-# train tri1 [first triphone pass]，训练三音素模型
+# train tri1 [first triphone pass]，训练三音素模型。用单音素模型的对齐结果（mono_ali）来训练。
 steps/train_deltas.sh --cmd "$train_cmd" \
  2500 20000 data/train data/lang exp/mono_ali exp/tri1 || exit 1;
 
@@ -95,7 +101,7 @@ steps/align_si.sh --cmd "$train_cmd" --nj ${nj} \
   data/train data/lang exp/tri1 exp/tri1_ali || exit 1;
 
 echo "[RUN] 12 =================================="
-# train tri2 [delta+delta-deltas]，训练三音素模型（真正的？）
+# train tri2 [delta+delta-deltas]，训练三音素模型。用上一步三音素模型的对齐结果（tri1_ali）来训练，其他参数都一样。
 steps/train_deltas.sh --cmd "$train_cmd" \
  2500 20000 data/train data/lang exp/tri1_ali exp/tri2 || exit 1;
 
@@ -163,15 +169,18 @@ steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/train data/lang exp/tri5
 steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/dev data/lang exp/tri5a exp/tri5a_ali_cv || exit 1;
 
 echo "[RUN] 24 =================================="
-# nnet3
-local/nnet3/run_tdnn.sh
+CUDA_VISIBLE_DEVICES=2 nohup bash local/nnet/run_dnn.sh --stage 0 --feats_gen 1 --nj 8 exp/tri5a exp/tri5a_ali exp/tri5a_ali_cv > run_dnn.log 2>&1 &
 
-echo "[RUN] 25 =================================="
-# chain
-local/chain/run_tdnn.sh
-
-echo "[RUN] 26 =================================="
-# getting results (see RESULTS file)
-for x in exp/*/decode_test; do [ -d $x ] && grep WER $x/cer_* | utils/best_wer.sh; done 2>/dev/null
+#echo "[RUN] 24 =================================="
+## nnet3
+#local/nnet3/run_tdnn.sh
+#
+#echo "[RUN] 25 =================================="
+## chain
+#local/chain/run_tdnn.sh
+#
+#echo "[RUN] 26 =================================="
+## getting results (see RESULTS file)
+#for x in exp/*/decode_test; do [ -d $x ] && grep WER $x/cer_* | utils/best_wer.sh; done 2>/dev/null
 
 exit 0;
