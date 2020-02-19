@@ -34,6 +34,7 @@ volume_perturb=1                        # 音量扰动标志位
 reverberate_data=1                      # 混响数据标志位
 num_data_reps=1                         # 数据复制的次数，默认为1
 sample_frequency=16000
+augment_data=1                          # 加性噪声标志位
 acwt=0.08
 lang=data/lang
 
@@ -72,8 +73,9 @@ echo "[run_dnn.sh]  nnet_init: "${nnet_init}
 ### ======================================================================================================================
 echo "[run_dnn.sh] 0 =================================="
 # 根据使用的特征类型，选择对应的生成脚本
-if [ ${feats_type} == "fbank" ]; then
-    gen_sctipt="make_fbank.sh"
+if [ "${feats_type}" == "fbank" ]; then
+    # gen_sctipt="make_fbank.sh"
+    gen_sctipt="make_fbank_pitch.sh"
 else
     gen_sctipt="make_mfcc_pitch.sh"
 fi
@@ -138,7 +140,6 @@ if [ ${feats_gen} -ne 0 ]; then
         # 输入目录应该时加了音速扰动后的输出目录，如s5/data/{fbank|mfcc}/train_sp
         # datadir=data/ihm/train_cleaned_sp
         src_dir=train_sp
-        datadir=${data_fbk}/${src_dir}
         rvb_opts=()
         rvb_opts+=(--rir-set-parameters "0.5, RIRS_NOISES/simulated_rirs/smallroom/rir_list")
         rvb_opts+=(--rir-set-parameters "0.5, RIRS_NOISES/simulated_rirs/mediumroom/rir_list")
@@ -192,8 +193,65 @@ if [ ${feats_gen} -ne 0 ]; then
         echo "[run_dnn.sh] ============================================ "
     fi
 
-    # 生成FBank特征，是40维FBank
-    echo "[run_dnn.sh] use fbank ..."
+    # 添加加性噪声标
+    if [ ${augment_data} -ne 0 ]; then
+        # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
+        # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
+        echo "[run_dnn.sh] ============================================ "
+        echo "$0: creating augment data ..."
+        echo "[run_dnn.sh] ============================================ "
+        # 输入目录应该时加了音速扰动后的输出目录，如s5/data/{fbank|mfcc}/train_sp
+        src_dir=train_sp
+
+        # 准备MUSAN语料库，包括适合增强的音乐、语音和噪声。
+        local/make_musan.sh /export/corpora/JHU/musan data || exit 1
+        # 获取MUSAN录制的持续时间。这将由脚本augment_data_dir.py使用。
+        for name in speech noise music; do
+            utils/data/get_utt2dur.sh data/musan_${name} || exit 1
+            mv data/musan_${name}/utt2dur data/musan_${name}/reco2dur || exit 1
+        done
+
+        python steps/data/augment_data_dir.py --utt-suffix "noise" --fg-interval 1 --fg-snrs "15:10:5:0" \
+            --fg-noise-dir "data/musan_noise" ${data_fbk}/${src_dir} ${data_fbk}/train_noise || exit 1
+        # python steps/data/augment_data_dir.py --utt-suffix "music" --bg-snrs "15:10:8:5" --num-bg-noises "1" \
+        #   --bg-noise-dir "data/musan_music" ${data_fbk}/${src_dir} ${data_fbk}/train_music || exit 1
+        python steps/data/augment_data_dir.py --utt-suffix "babble" --bg-snrs "20:17:15:13" --num-bg-noises "3:4:5:6:7"\
+            --bg-noise-dir "data/musan_speech" ${data_fbk}/${src_dir} ${data_fbk}/train_babble || exit 1
+
+        # 合并添加了加性噪声的多个数据集。输出目录是data/train_aug，剩下的都是源目录（包括混响的目录）
+        utils/combine_data.sh ${data_fbk}/train_aug ${data_fbk}/train_noise ${data_fbk}/train_babble \
+            ${data_fbk}/${src_dir}_rvb${num_data_reps}_hires || exit 1
+
+        # 这里会随机获取扩充数据集的子集，所以是只用了部分的数据来生成mfcc，随机生成的数据和原始数据大概1:1的比例。
+        start_time=`date +"%Y-%m-%d %H:%M:%S"`
+        echo "[run_dnn.sh] start time: "${start_time}
+        utils/subset_data_dir.sh ${data_fbk}/train_aug 100000 ${data_fbk}/train_aug_sub || exit 1
+        utils/fix_data_dir.sh ${data_fbk}/train_aug_sub || exit 1
+        start_time=`date +"%Y-%m-%d %H:%M:%S"`
+        echo "[run_dnn.sh] end time: "${start_time}
+
+        # 生成mfcc特征
+        # steps/make_mfcc.sh  --nj 40 --cmd "$train_cmd" data/train_aug_sub exp/make_mfcc $mfccdir
+        steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/train_aug_sub \
+            exp/make_${feats_type}_log/train_aug_sub ${feats_type}/train_aug_sub || exit 1
+        steps/compute_cmvn_stats.sh ${data_fbk}/train_aug_sub exp/make_${feats_type}_log/train_aug_sub \
+            ${feats_type}/train_aug_sub || exit 1
+        utils/fix_data_dir.sh ${feats_type}/train_aug_sub || exit 1
+
+        # 合并音量扰动后的数据和加了噪声后的数据子集（包括混响）。最终生成的数据名称是${data_fbk}/train_aug_combined
+        utils/combine_data.sh ${data_fbk}/train_aug_combined ${data_fbk}/train_aug_sub ${data_fbk}/${train_set} || exit 1
+
+        train_set=train_aug_combined
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
+    fi
+
+    # ==========================================================================================================
+    # 生成train和dev特征
+    echo "[run_dnn.sh] ============================================ "
+    echo "$0: creating dev and test data ..."
+    echo "[run_dnn.sh] ============================================ "
     # cp -R data/{train,dev,test} ${data_fbk} || exit 1;
     # cp -R data/${train_set} ${data_fbk} || exit 1;
     cp -R data/${dev_set} ${data_fbk} || exit 1;
@@ -212,7 +270,7 @@ if [ ${feats_gen} -ne 0 ]; then
     # done
     for x in ${dev_set} ${test_set}; do
         echo "[run_dnn.sh] ============================================ "
-        echo "[run_dnn.sh] producing "${feats_type}" for "${x}
+        echo "[run_dnn.sh] creating "${feats_type}" for "${x}
         # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${fbankdir}
         steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
         steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
@@ -242,6 +300,13 @@ else
     if [ ${reverberate_data} -ne 0 ]; then
         new_train_set=${train_set}_rvb
         train_set=${new_train_set}
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
+        echo "[run_dnn.sh] ============================================ "
+    fi
+    # 添加加性噪声标
+    if [ ${augment_data} -ne 0 ]; then
+        train_set=train_aug_combined
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
         echo "[run_dnn.sh] ============================================ "
