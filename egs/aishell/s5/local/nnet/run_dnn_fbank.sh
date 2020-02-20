@@ -101,13 +101,14 @@ if [ ${feats_gen} -ne 0 ]; then
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
         echo "[run_dnn.sh] ============================================ "
 
-        # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
-        alidir=${gmmdir}_sp_ali
-        echo "$0: aligning with the perturbed low-resolution data"
-        steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
-        echo "[run_dnn.sh] ============================================ "
-        echo "[run_dnn.sh] new alidir set : "${alidir}
-        echo "[run_dnn.sh] ============================================ "
+        # # 数据对齐应该是在最后做吧
+        # # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
+        # alidir=${gmmdir}_sp_ali
+        # echo "$0: aligning with the perturbed low-resolution data"
+        # steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
+        # echo "[run_dnn.sh] ============================================ "
+        # echo "[run_dnn.sh] new alidir set : "${alidir}
+        # echo "[run_dnn.sh] ============================================ "
     fi
 
     # 添加音量扰动
@@ -260,6 +261,17 @@ if [ ${feats_gen} -ne 0 ]; then
     fi
 
     # ==========================================================================================================
+    # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
+    alidir=${gmmdir}_sp_ali
+    echo "[run_dnn.sh] ============================================ "
+    echo "$0: aligning data ..."
+    echo "[run_dnn.sh] ============================================ "
+    steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
+    echo "[run_dnn.sh] ============================================ "
+    echo "[run_dnn.sh] new alidir set : "${alidir}
+    echo "[run_dnn.sh] ============================================ "
+
+    # ==========================================================================================================
     # 生成train和dev特征
     echo "[run_dnn.sh] ============================================ "
     echo "$0: creating dev and test data ..."
@@ -295,10 +307,6 @@ else
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
         echo "[run_dnn.sh] ============================================ "
-        alidir=${gmmdir}_sp_ali
-        echo "[run_dnn.sh] ============================================ "
-        echo "[run_dnn.sh] new alidir set : "${alidir}
-        echo "[run_dnn.sh] ============================================ "
     fi
     # 有加音量扰动
     if [ ${volume_perturb} -ne 0 ]; then
@@ -323,6 +331,12 @@ else
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
         echo "[run_dnn.sh] ============================================ "
     fi
+
+    # 数据对齐的文档
+    alidir=${gmmdir}_sp_ali
+    echo "[run_dnn.sh] ============================================ "
+    echo "[run_dnn.sh] new alidir set : "${alidir}
+    echo "[run_dnn.sh] ============================================ "
 fi
 
 
