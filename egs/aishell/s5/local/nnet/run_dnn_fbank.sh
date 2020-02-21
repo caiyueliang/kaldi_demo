@@ -81,11 +81,11 @@ else
 fi
 echo "[run_dnn.sh] gen_sctipt: "${gen_sctipt}
 
-if [ ${feats_gen} -ne 0 ]; then
+if [ "${feats_gen}" -ne "0" ]; then
     echo "[run_dnn.sh] Re-generate features data ..."
 
     # 添加音速扰动
-    if [ ${speed_perturb} -ne 0 ]; then
+    if [ "${speed_perturb}" -ne "0" ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
         echo "[run_dnn.sh] ============================================ "
@@ -112,7 +112,7 @@ if [ ${feats_gen} -ne 0 ]; then
     fi
 
     # 添加音量扰动
-    if [ ${volume_perturb} -ne 0 ]; then
+    if [ "${volume_perturb}" -ne "0" ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp_hires ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp_hires ...
         echo "[run_dnn.sh] ============================================ "
@@ -132,7 +132,7 @@ if [ ${feats_gen} -ne 0 ]; then
     fi
 
     # 添加混响
-    if [ ${reverberate_data} -ne 0 ]; then
+    if [ "${reverberate_data}" -ne "0" ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
         echo "[run_dnn.sh] ============================================ "
@@ -140,6 +140,12 @@ if [ ${feats_gen} -ne 0 ]; then
         echo "[run_dnn.sh] ============================================ "
         # 输入目录应该时加了音速扰动后的输出目录，如s5/data/{fbank|mfcc}/train_sp
         # datadir=data/ihm/train_cleaned_sp
+        if [ ! -d "RIRS_NOISES" ]; then
+            # Download the package that includes the real RIRs, simulated RIRs, isotropic noises and point-source noises
+            wget --no-check-certificate http://www.openslr.org/resources/28/rirs_noises.zip
+            unzip rirs_noises.zip
+        fi
+
         src_dir=train_sp
         rvb_opts=()
         rvb_opts+=(--rir-set-parameters "0.5, RIRS_NOISES/simulated_rirs/smallroom/rir_list")
@@ -195,7 +201,7 @@ if [ ${feats_gen} -ne 0 ]; then
     fi
 
     # 添加加性噪声标
-    if [ ${augment_data} -ne 0 ]; then
+    if [ "${augment_data}" -ne "0" ]; then
         # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
         # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
         echo "[run_dnn.sh] ============================================ "
@@ -301,7 +307,7 @@ if [ ${feats_gen} -ne 0 ]; then
     done
 else
     # 有加音速扰动
-    if [ ${speed_perturb} -ne 0 ]; then
+    if [ "${speed_perturb}" -ne "0" ]; then
         new_train_set=${train_set}_sp
         train_set=${new_train_set}
         echo "[run_dnn.sh] ============================================ "
@@ -309,7 +315,7 @@ else
         echo "[run_dnn.sh] ============================================ "
     fi
     # 有加音量扰动
-    if [ ${volume_perturb} -ne 0 ]; then
+    if [ "${volume_perturb}" -ne "0" ]; then
         new_train_set=${train_set}_hires
         train_set=${new_train_set}
         echo "[run_dnn.sh] ============================================ "
@@ -317,7 +323,7 @@ else
         echo "[run_dnn.sh] ============================================ "
     fi
     # 添加混响
-    if [ ${reverberate_data} -ne 0 ]; then
+    if [ "${reverberate_data}" -ne "0" ]; then
         new_train_set=${train_set}_rvb
         train_set=${new_train_set}
         echo "[run_dnn.sh] ============================================ "
@@ -325,7 +331,7 @@ else
         echo "[run_dnn.sh] ============================================ "
     fi
     # 添加加性噪声标
-    if [ ${augment_data} -ne 0 ]; then
+    if [ "${augment_data}" -ne "0" ]; then
         train_set=train_aug_combined
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
