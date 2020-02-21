@@ -20,7 +20,7 @@ data_url=www.openslr.org/resources/33
 
 . ./cmd.sh
 
-nj=10
+nj=16
 
 echo "[RUN] data: "${data}
 echo "[RUN]   nj: "${nj}
@@ -54,14 +54,24 @@ echo "[RUN] 5 =================================="
 # Now make MFCC plus pitch features. 生成 MFCC 特征
 # mfccdir should be some place with a largish disk where you
 # want to store MFCC features.
-# mfccdir=mfcc/base
-mfccdir=fbank/base
+# feats_type=fbank
+feats_type=mfcc
+feats_dir=${feats_type}/base
+
+if [ "${feats_type}" == "fbank" ]; then
+    # gen_sctipt="make_fbank.sh"
+    gen_sctipt="make_fbank_pitch.sh"
+else
+    gen_sctipt="make_mfcc_pitch.sh"
+fi
+echo "[run_dnn.sh] gen_sctipt: "${gen_sctipt}
+
 for x in train dev test; do
-  # steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
-  # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
-  steps/make_fbank_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
-  steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${mfccdir}_${x} || exit 1;
-  utils/fix_data_dir.sh data/${x}_${x} || exit 1;
+  # steps/make_mfcc_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_${feats_type}_log/${x} ${mfccdir}_${x} || exit 1;
+  # steps/make_fbank_pitch.sh --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_${feats_type}_log/${x} ${feats_dir}_${x} || exit 1;
+  steps/${gen_sctipt} --cmd "${train_cmd}" --nj ${nj} data/${x} exp/make_${feats_type}_log/${x} ${feats_dir}_${x} || exit 1;
+  steps/compute_cmvn_stats.sh data/${x} exp/make_mfcc/${x} ${feats_dir}_${x} || exit 1;
+  utils/fix_data_dir.sh data/${x} || exit 1;
 done
 
 # ======================================================================================================================
@@ -169,7 +179,7 @@ steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/train data/lang exp/tri5
 steps/align_fmllr.sh --cmd "$train_cmd" --nj ${nj} data/dev data/lang exp/tri5a exp/tri5a_ali_cv || exit 1;
 
 echo "[RUN] 24 =================================="
-CUDA_VISIBLE_DEVICES=2 nohup bash local/nnet/run_dnn.sh --stage 0 --feats_gen 1 --nj 8 exp/tri5a exp/tri5a_ali exp/tri5a_ali_cv > run_dnn.log 2>&1 &
+CUDA_VISIBLE_DEVICES=2 nohup bash local/nnet/run_dnn.sh --stage 0 --feats_gen 1 --nj ${nj} exp/tri5a exp/tri5a_ali exp/tri5a_ali_cv > run_dnn.log 2>&1 &
 
 #echo "[RUN] 24 =================================="
 ## nnet3
