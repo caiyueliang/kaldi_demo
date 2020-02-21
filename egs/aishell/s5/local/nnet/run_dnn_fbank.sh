@@ -29,12 +29,15 @@ data_fbk=data/${feats_type}
 train_set=train
 dev_set=dev
 test_set=test
+
 speed_perturb=1                         # 音速扰动标志位
 volume_perturb=1                        # 音量扰动标志位
 reverberate_data=1                      # 混响数据标志位
-num_data_reps=1                         # 数据复制的次数，默认为1
-sample_frequency=16000
 augment_data=1                          # 加性噪声标志位
+
+num_data_reps=1                         # 混响参数：数据复制的次数，默认为1
+sample_frequency=16000                  # 混响参数：
+
 acwt=0.08
 lang=data/lang
 
@@ -427,7 +430,7 @@ fi
 echo "[run_dnn.sh] 4 =================================="
 ####do smbr
 if [ ${stage} -le 4 ]; then
-    steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 1 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
+    steps/nnet/train_mpe.sh --cmd "${cuda_cmd}" --num-iters 2 --learn-rate 0.0000002 --acwt ${acwt} --do-smbr true \
         ${data_fbk}/${train_set} ${lang} ${dir} ${dir}_ali ${dir}_denlats ${dir}_smbr
 fi
 
