@@ -33,7 +33,7 @@ test_set=test
 speed_perturb=1                         # 音速扰动标志位
 volume_perturb=1                        # 音量扰动标志位
 reverberate_data=1                      # 混响数据标志位
-augment_data=1                          # 加性噪声标志位
+augment_data=0                          # 加性噪声标志位
 
 num_data_reps=1                         # 混响参数：数据复制的次数，默认为1
 sample_frequency=16000                  # 混响参数：
