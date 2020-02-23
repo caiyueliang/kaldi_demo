@@ -19,9 +19,8 @@ class GenUtt(object):
     def __init__(self, root_path):
         self.utt2spk = os.path.join(root_path, "utt2spk")
         self.utt2spk_sort = os.path.join(root_path, "utt2spk_sort")
-        # self.utt_list = os.path.join(root_path, "utt_list")
-        self.utt_list = "./utt_list"
-        pass
+        self.utt_list = os.path.join(root_path, "random_utt_list")
+        return
 
     @staticmethod
     def read_data(file_name):
