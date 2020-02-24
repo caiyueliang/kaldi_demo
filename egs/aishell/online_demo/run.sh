@@ -1,7 +1,8 @@
 #!/bin/bash
-
-# Copyright 2012 Vassil Panayotov
-# Apache 2.0
+# Description :  online decode
+# Author :       caiyueliang
+# Date :         2020/01/12
+# Detail:
 
 # Note: you have to do 'make ext' in ../../../src/ before running this.
 
@@ -16,11 +17,12 @@ data_url="http://sourceforge.net/projects/kaldi/files/online-data.tar.bz2"
 # ac_model_type=tri2b_mmi
 # ac_model_type=thchs30_tri1
 # ac_model_type=thchs30_tri2b
-ac_model_type=thchs30_tri4b
+# ac_model_type=thchs30_tri4b
 # ac_model_type=thchs30_tri7b_DFSMN_L
 
 # ac_model_type=aishell_tri1
 # ac_model_type=aishell_tri5a
+ac_model_type=aishell_chain
 
 # Alignments and decoding results are saved in this directory(simulated decoding only)
 decode_dir="./work"
@@ -40,12 +42,15 @@ ac_model=${data_file}/models/${ac_model_type}
 
 # trans_matrix=""
 trans_matrix=${ac_model}/final.mat
+# trans_matrix=${ac_model}/lda.mat
 
-# final_model=${ac_model}/final.mdl
-final_model=${ac_model}/final.alimdl
+final_model=${ac_model}/final.mdl
+# final_model=${ac_model}/final.alimdl
 
-# audio=${data_file}/audio/thchs30
-audio=${data_file}/audio/aishell
+#audio=${data_file}/audio/thchs30
+#audio=${data_file}/audio/aishell
+#audio=${data_file}/audio/qddata
+audio=${data_file}/audio/qddata_16khz
 
 echo "[online_demo] 1 ============================================"
 echo "[online_demo]    [ac_model] : "${ac_model}

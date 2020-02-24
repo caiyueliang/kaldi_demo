@@ -1,7 +1,8 @@
 #!/bin/bash
-
-# Copyright 2012 Vassil Panayotov
-# Apache 2.0
+# Description :  online decode
+# Author :       caiyueliang
+# Date :         2020/01/12
+# Detail:
 
 # Note: you have to do 'make ext' in ../../../src/ before running this.
 

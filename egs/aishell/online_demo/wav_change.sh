@@ -1,4 +1,8 @@
 #!/bin/bash
+# Description :  online decode
+# Author :       caiyueliang
+# Date :         2020/01/12
+# Detail:
 
 in_dir="./online-data/audio/qddata"
 out_dir="./online-data/audio/qddata_16khz"
