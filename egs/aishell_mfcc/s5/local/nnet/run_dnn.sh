@@ -382,7 +382,7 @@ if [ ${stage} -le 1 ]; then
                 ${data_fbk}/${train_set} ${data_fbk}/${dev_set} ${lang} ${alidir} ${alidir_cv} ${dir} || exit 1;
         else
             ${cuda_cmd} ${dir}/train_faster_nnet.log \
-                steps/nnet/train_faster_cyl.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+                steps/nnet/train_faster_improved.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
                 --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
                 --min_iters ${min_iters} \
                 --dropout_schedule ${dropout_schedule} \
@@ -410,7 +410,7 @@ if [ ${stage} -le 1 ]; then
                 ${data_fbk}/${train_set} ${data_fbk}/${dev_set} ${lang} ${alidir} ${alidir_cv} ${dir} || exit 1;
         else
             ${cuda_cmd} ${dir}/train_faster_nnet.log \
-                steps/nnet/train_faster_cyl.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
+                steps/nnet/train_faster_improved.sh --nnet-proto ${new_proto} --learn-rate ${learn_rate} \
                 --max_iters ${max_iters} --start_half_lr ${start_half_lr} --momentum ${momentum} \
                 --min_iters ${min_iters} \
                 --dropout_schedule ${dropout_schedule} \

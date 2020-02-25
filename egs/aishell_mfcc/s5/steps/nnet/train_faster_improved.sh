@@ -485,7 +485,7 @@ echo "[TrainFaster] 12 =================================="
 ###### TRAIN ######
 echo
 echo "# RUNNING THE NN-TRAINING SCHEDULER"
-steps/nnet/train_faster_scheduler_cyl.sh \
+steps/nnet/train_faster_scheduler_improved.sh \
   ${scheduler_opts} \
   ${train_tool:+ --train-tool "$train_tool"} \
   ${train_tool_opts:+ --train-tool-opts "$train_tool_opts"} \
