@@ -25,64 +25,64 @@ augment_data=0                          # 加性噪声标志位
 num_data_reps=1                         # 混响参数：数据复制的次数，默认为1
 sample_frequency=16000                  # 混响参数：
 
-echo "[run_dnn.sh] ===================================="
-echo "[run_dnn.sh]    feats_type: "${feats_type}
-echo "[run_dnn.sh]      data_fbk: "${data_fbk}
-echo "[run_dnn.sh]     train_set: "${train_set}
-echo "[run_dnn.sh]       dev_set: "${dev_set}
-echo "[run_dnn.sh]      test_set: "${test_set}
-echo "[run_dnn.sh]          lang: "${lang}
-echo "[run_dnn.sh] ===================================="
-echo "[run_dnn.sh] speed_perturb: "${speed_perturb}
-echo "[run_dnn.sh]volume_perturb: "${volume_perturb}
-echo "[run_dnn.sh]   reverberate: "${reverberate_data}
-echo "[run_dnn.sh]  augment_data: "${augment_data}
+echo "[data_transformer] ===================================="
+echo "[data_transformer]    feats_type: "${feats_type}
+echo "[data_transformer]      data_fbk: "${data_fbk}
+echo "[data_transformer]     train_set: "${train_set}
+echo "[data_transformer]       dev_set: "${dev_set}
+echo "[data_transformer]      test_set: "${test_set}
+echo "[data_transformer]          lang: "${lang}
+echo "[data_transformer] ===================================="
+echo "[data_transformer] speed_perturb: "${speed_perturb}
+echo "[data_transformer]volume_perturb: "${volume_perturb}
+echo "[data_transformer]   reverberate: "${reverberate_data}
+echo "[data_transformer]  augment_data: "${augment_data}
 
-echo "[run_dnn.sh] 0 =================================="
+echo "[data_transformer] 0 =================================="
 # 根据使用的特征类型，选择对应的生成脚本
 if [ "${feats_type}" == "fbank" ]; then
     gen_sctipt="make_fbank_pitch.sh"
 else
     gen_sctipt="make_mfcc_pitch.sh"
 fi
-echo "[run_dnn.sh] gen_sctipt: "${gen_sctipt}
+echo "[data_transformer] gen_sctipt: "${gen_sctipt}
 
-echo "[run_dnn.sh] 1 =================================="
-echo "[run_dnn.sh] Re-generate features data ..."
+echo "[data_transformer] 1 =================================="
+echo "[data_transformer] Re-generate features data ..."
 
 # 添加音速扰动
 if [ "${speed_perturb}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
     # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     echo "$0: creating speed-perturbed data ..."
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     utils/data/perturb_data_dir_speed_3way.sh --always-include-prefix true data/${train_set} ${data_fbk}/${train_set}_sp || exit 1
     steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
     steps/compute_cmvn_stats.sh ${data_fbk}/${train_set}_sp exp/make_${feats_type}_log/${train_set}_sp ${feats_type}/${train_set}_sp || exit 1
     utils/fix_data_dir.sh ${data_fbk}/${train_set}_sp || exit 1
     new_train_set=${train_set}_sp
     train_set=${new_train_set}
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] new train set : "${data_fbk}/${train_set}
+    echo "[data_transformer] ============================================ "
 
     # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
     alidir=${gmmdir}_sp_ali
     echo "$0: aligning with the perturbed low-resolution data"
     steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] new alidir set : "${alidir}
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] new alidir set : "${alidir}
+    echo "[data_transformer] ============================================ "
 fi
 
 # 添加音量扰动
 if [ "${volume_perturb}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp_hires ...
     # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp_hires ...
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     echo "$0: creating volume-perturbed data ..."
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     utils/copy_data_dir.sh ${data_fbk}/${train_set} ${data_fbk}/${train_set}_hires || exit 1
     utils/data/perturb_data_dir_volume.sh ${data_fbk}/${train_set}_hires || exit 1
     steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set}_hires exp/make_${feats_type}_log/${train_set}_hires ${feats_type}/${train_set}_hires || exit 1
@@ -91,18 +91,18 @@ if [ "${volume_perturb}" -ne "0" ]; then
 
     new_train_set=${train_set}_hires
     train_set=${new_train_set}
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] new train set : "${data_fbk}/${train_set}
+    echo "[data_transformer] ============================================ "
 fi
 
 # 添加混响
 if [ "${reverberate_data}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
     # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     echo "$0: creating reverberated data ..."
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     # 输入目录应该时加了音速扰动后的输出目录，如s5/data/{fbank|mfcc}/train_sp
     # datadir=data/ihm/train_cleaned_sp
     if [ ! -d "RIRS_NOISES" ]; then
@@ -160,18 +160,18 @@ if [ "${reverberate_data}" -ne "0" ]; then
 
     new_train_set=${train_set}_rvb
     train_set=${new_train_set}
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] new train set : "${data_fbk}/${train_set}
+    echo "[data_transformer] ============================================ "
 fi
 
 # 添加加性噪声标
 if [ "${augment_data}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
     # 特征文件的输出目录是：s5/{fbank|mfcc}/train_sp ...
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     echo "$0: creating augment data ..."
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
     # 输入目录应该时加了音速扰动后的输出目录，如s5/data/{fbank|mfcc}/train_sp
     src_dir=train_sp
 
@@ -208,11 +208,11 @@ if [ "${augment_data}" -ne "0" ]; then
 
     # 这里会随机获取扩充数据集的子集，所以是只用了部分的数据来生成mfcc，随机生成的数据和原始数据大概1:1的比例。
     start_time=`date +"%Y-%m-%d %H:%M:%S"`
-    echo "[run_dnn.sh] start time: "${start_time}
+    echo "[data_transformer] start time: "${start_time}
     utils/subset_data_dir.sh ${data_fbk}/train_aug 100000 ${data_fbk}/train_aug_sub || exit 1
     utils/fix_data_dir.sh ${data_fbk}/train_aug_sub || exit 1
     start_time=`date +"%Y-%m-%d %H:%M:%S"`
-    echo "[run_dnn.sh] end time: "${start_time}
+    echo "[data_transformer] end time: "${start_time}
 
     # # 生成mfcc特征，改成在上面生成
     # # steps/make_mfcc.sh  --nj 40 --cmd "$train_cmd" data/train_aug_sub exp/make_mfcc $mfccdir
@@ -226,32 +226,32 @@ if [ "${augment_data}" -ne "0" ]; then
     utils/combine_data.sh ${data_fbk}/train_aug_combined ${data_fbk}/train_aug_sub ${data_fbk}/${train_set} || exit 1
 
     train_set=train_aug_combined
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
-    echo "[run_dnn.sh] ============================================ "
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] new train set : "${data_fbk}/${train_set}
+    echo "[data_transformer] ============================================ "
 fi
 
 # ==========================================================================================================
 # # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
 # alidir=${gmmdir}_sp_ali
-# echo "[run_dnn.sh] ============================================ "
+# echo "[data_transformer] ============================================ "
 # echo "$0: aligning data ..."
-# echo "[run_dnn.sh] ============================================ "
+# echo "[data_transformer] ============================================ "
 # steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
-# echo "[run_dnn.sh] ============================================ "
-# echo "[run_dnn.sh] new alidir set : "${alidir}
-# echo "[run_dnn.sh] ============================================ "
+# echo "[data_transformer] ============================================ "
+# echo "[data_transformer] new alidir set : "${alidir}
+# echo "[data_transformer] ============================================ "
 
 # ==========================================================================================================
 # 生成train和dev特征
-echo "[run_dnn.sh] ============================================ "
+echo "[data_transformer] ============================================ "
 echo "$0: creating dev and test data ..."
-echo "[run_dnn.sh] ============================================ "
+echo "[data_transformer] ============================================ "
 cp -R data/${dev_set} ${data_fbk} || exit 1;
 cp -R data/${test_set} ${data_fbk} || exit 1;
 for x in ${dev_set} ${test_set}; do
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] creating "${feats_type}" for "${x}
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] creating "${feats_type}" for "${x}
     # steps/make_fbank.sh --cmd "${train_cmd}" --nj ${nj} ${data} ${logdir} ${fbankdir}
     steps/${gen_sctipt} --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
     steps/compute_cmvn_stats.sh ${data_fbk}/${x} exp/make_${feats_type}_log/${x} ${feats_type}/${x} || exit 1
