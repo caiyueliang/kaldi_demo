@@ -24,6 +24,7 @@ speed_perturb=1                         # 音速扰动标志位
 volume_perturb=1                        # 音量扰动标志位
 reverberate_data=0                      # 混响数据标志位
 augment_data=0                          # 加性噪声标志位
+align_data=0                            # 对齐数据标志位
 
 num_data_reps=1                         # 混响参数：数据复制的次数，默认为1
 sample_frequency=16000                  # 混响参数：
@@ -42,12 +43,13 @@ echo "[data_transformer] speed_perturb: "${speed_perturb}
 echo "[data_transformer]volume_perturb: "${volume_perturb}
 echo "[data_transformer]   reverberate: "${reverberate_data}
 echo "[data_transformer]  augment_data: "${augment_data}
+echo "[data_transformer]    align_data: "${align_data}
 
-# gmmdir=$1               # 对齐才用到
-# alidir=$2               # 对齐才用到
-# echo "[data_transformer] ===================================="
-# echo "[data_transformer]        gmmdir: "${gmmdir}
-# echo "[data_transformer]        alidir: "${alidir}
+ gmmdir=$1                             # 对齐才用到
+ alidir=$2                             # 对齐才用到
+ echo "[data_transformer] ===================================="
+ echo "[data_transformer]        gmmdir: "${gmmdir}
+ echo "[data_transformer]        alidir: "${alidir}
 
 echo "[data_transformer] 0 =================================="
 # 根据使用的特征类型，选择对应的生成脚本
@@ -88,17 +90,21 @@ if [ "${speed_perturb}" -ne "0" ]; then
     echo "[data_transformer] ============================================ "
     echo "[data_transformer] new train set : "${data_fbk}/${train_set}
     echo "[data_transformer] ============================================ "
-
-    # # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
-    # alidir=${gmmdir}_sp_ali
-    # echo "$0: aligning with the perturbed low-resolution data"
-    # steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
-    # echo "[data_transformer] ============================================ "
-    # echo "[data_transformer] new alidir set : "${alidir}
-    # echo "[data_transformer] ============================================ "
 fi
 
 echo "[data_transformer] 3 =================================="
+# 进行数据对齐的
+if [ "${align_data}" -ne "0" ]; then
+    # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
+    # alidir=${gmmdir}_sp_ali
+    echo "$0: aligning with the perturbed low-resolution data"
+    steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
+    echo "[data_transformer] ============================================ "
+    echo "[data_transformer] output alidir set : "${alidir}
+    echo "[data_transformer] ============================================ "
+fi
+
+echo "[data_transformer] 4 =================================="
 # 添加音量扰动
 if [ "${volume_perturb}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp_hires ...
@@ -118,7 +124,7 @@ if [ "${volume_perturb}" -ne "0" ]; then
     echo "[data_transformer] ============================================ "
 fi
 
-echo "[data_transformer] 4 =================================="
+echo "[data_transformer] 5 =================================="
 # 添加混响
 if [ "${reverberate_data}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
@@ -187,7 +193,7 @@ if [ "${reverberate_data}" -ne "0" ]; then
     echo "[data_transformer] ============================================ "
 fi
 
-echo "[data_transformer] 5 =================================="
+echo "[data_transformer] 6 =================================="
 # 添加加性噪声标
 if [ "${augment_data}" -ne "0" ]; then
     # 路径文件的输出目录是：s5/data/{fbank|mfcc}/train_sp ...
@@ -252,14 +258,3 @@ if [ "${augment_data}" -ne "0" ]; then
     echo "[data_transformer] new train set : "${data_fbk}/${train_set}
     echo "[data_transformer] ============================================ "
 fi
-
-# ==========================================================================================================
-# # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
-# alidir=${gmmdir}_sp_ali
-# echo "[data_transformer] ============================================ "
-# echo "$0: aligning data ..."
-# echo "[data_transformer] ============================================ "
-# steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" ${data_fbk}/${train_set} ${lang} ${gmmdir} ${alidir} || exit 1
-# echo "[data_transformer] ============================================ "
-# echo "[data_transformer] new alidir set : "${alidir}
-# echo "[data_transformer] ============================================ "
