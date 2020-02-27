@@ -20,9 +20,9 @@ data=/home/rd/caiyueliang/data/AISHELL
 data_url=www.openslr.org/resources/33
 
 stage=0
-nj=16
+nj=10
 
-gpu_id=3                    # 默认使用的GPU ID
+gpu_id=2                    # 默认使用的GPU ID
 dfsmn_stage=0
 dfsmn_feats_gen=0           # 0表示不生成
 
@@ -33,9 +33,11 @@ feats_dir=${feats_type}/base
 #train_set=train
 #dev_set=dev
 #test_set=test
-train_set=${feats_type}/train_sp_hires
+train_set=${feats_type}/train_sp_hires_rvb
 dev_set=${feats_type}/dev
 test_set=${feats_type}/test
+
+. utils/parse_options.sh || exit 1;
 
 echo "[RUN]            data: "${data}
 echo "[RUN]           stage: "${stage}
@@ -239,6 +241,7 @@ fi
 #
 #echo "[RUN] 26 =================================="
 ## getting results (see RESULTS file)
-#for x in exp/*/decode_test; do [ -d $x ] && grep WER $x/cer_* | utils/best_wer.sh; done 2>/dev/null
+echo "[RUN] 25 =================================="
+for x in exp/*/decode_test; do [ -d $x ] && grep WER $x/cer_* | utils/best_wer.sh; done 2>/dev/null
 
 exit 0;

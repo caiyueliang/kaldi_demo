@@ -4,24 +4,23 @@
 # Date :         2019/12/24
 # Detail:
 
-echo "[run_dnn.sh] 0 =================================="
 . ./cmd.sh ## You'll want to change cmd.sh to something that will work on your system.
            ## This relates to the queue.
 
 . ./path.sh ## Source the tools/utils (import the queue.pl)
 
 stage=0
-nj=8
+nj=10
 nnet_init=
 learn_rate=0.00001
 max_iters=20
 min_iters=0
-start_half_lr=3
+start_half_lr=6
 momentum=0.9
 dropout_schedule="0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3"
 mini_batch="4096"
 acwt=0.08
-train_faster=1                          # 是否加速训练，默认打开
+train_faster=1                          # 是否加速训练，1表示打开
 
 # dnn_model=DFSMN_S
 dnn_model=DFSMN_L
@@ -39,9 +38,12 @@ speed_perturb=1                         # 音速扰动标志位
 volume_perturb=1                        # 音量扰动标志位
 reverberate_data=0                      # 混响数据标志位
 augment_data=0                          # 加性噪声标志位
+align_data=0                            # 对齐数据标志位
 
 num_data_reps=1                         # 混响参数：数据复制的次数，默认为1
 sample_frequency=16000                  # 混响参数：
+
+. utils/parse_options.sh || exit 1;
 
 echo "[run_dnn.sh] ===================================="
 echo "[run_dnn.sh]           dir: "${dir}
@@ -69,10 +71,7 @@ echo "[run_dnn.sh] speed_perturb: "${speed_perturb}
 echo "[run_dnn.sh]volume_perturb: "${volume_perturb}
 echo "[run_dnn.sh]   reverberate: "${reverberate_data}
 echo "[run_dnn.sh]  augment_data: "${augment_data}
-
-
-
-. utils/parse_options.sh || exit 1;
+echo "[run_dnn.sh]    align_data: "${align_data}
 
 gmmdir=$1
 alidir=$2
@@ -111,7 +110,10 @@ if [ "${feats_gen}" -ne "0" ]; then
         echo "[run_dnn.sh] ============================================ "
         echo "[run_dnn.sh] new train set : "${data_fbk}/${train_set}
         echo "[run_dnn.sh] ============================================ "
+    fi
 
+    # 进行数据对齐的
+    if [ "${align_data}" -ne "0" ]; then
         # 数据对齐: ${gmmdir}，输出目录${alidir}是：s5/exp/tri5a_sp_ali ...
         alidir=${gmmdir}_sp_ali
         echo "$0: aligning with the perturbed low-resolution data"
@@ -334,11 +336,13 @@ else
         echo "[run_dnn.sh] ============================================ "
     fi
 
-    # 数据对齐的文档
-    alidir=${gmmdir}_sp_ali
-    echo "[run_dnn.sh] ============================================ "
-    echo "[run_dnn.sh] new alidir set : "${alidir}
-    echo "[run_dnn.sh] ============================================ "
+    # 进行数据对齐的
+    if [ "${align_data}" -ne "0" ]; then
+        alidir=${gmmdir}_sp_ali
+        echo "[run_dnn.sh] ============================================ "
+        echo "[run_dnn.sh] new alidir set : "${alidir}
+        echo "[run_dnn.sh] ============================================ "
+    fi
 fi
 
 
