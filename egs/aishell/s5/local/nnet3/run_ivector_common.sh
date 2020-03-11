@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -11,18 +11,34 @@ set -euo pipefail
 # of usage.
 
 stage=0
+nj=10
 train_set=train
 test_sets="dev test"
-gmm=tri5a
+align_by_dfsmn=1
 
+online=false
 nnet3_affix=
 
 . ./cmd.sh
 . ./path.sh
 . utils/parse_options.sh
 
-gmm_dir=exp/${gmm}
-ali_dir=exp/${gmm}_sp_ali
+if [ ${align_by_dfsmn} -eq 0 ]; then
+    gmm_dir="exp/tri5a"
+    ali_dir="exp/tri5a_sp_ali"
+else
+    gmm_dir="exp/tri7b_DFSMN_L"
+    ali_dir="exp/tri5a_sp_ali"
+fi
+
+# ======================================================================================================================
+echo "[iVector]           stage: "${stage}
+echo "[iVector]              nj: "${nj}
+echo "[iVector]       train_set: "${train_set}
+echo "[iVector]       test_sets: "${test_sets}
+echo "[iVector]  align_by_dfsmn: "${align_by_dfsmn}
+echo "[iVector]         gmm_dir: "${gmm_dir}
+echo "[iVector]         ali_dir: "${ali_dir}
 
 for f in data/${train_set}/feats.scp ${gmm_dir}/final.mdl; do
   if [ ! -f $f ]; then
@@ -31,13 +47,18 @@ for f in data/${train_set}/feats.scp ${gmm_dir}/final.mdl; do
   fi
 done
 
+online_affix=
+if [ $online = true ]; then
+  online_affix=_online
+fi
+
 if [ $stage -le 1 ]; then
   # Although the nnet will be trained by high resolution data, we still have to
   # perturb the normal data to get the alignment _sp stands for speed-perturbed
   echo "$0: preparing directory for low-resolution speed-perturbed data (for alignment)"
   utils/data/perturb_data_dir_speed_3way.sh data/${train_set} data/${train_set}_sp
   echo "$0: making MFCC features for low-resolution speed-perturbed data"
-  steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj 70 data/${train_set}_sp \
+  steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj ${nj} data/${train_set}_sp \
     exp/make_mfcc/train_sp mfcc_perturbed || exit 1;
   steps/compute_cmvn_stats.sh data/${train_set}_sp \
     exp/make_mfcc/train_sp mfcc_perturbed || exit 1;
@@ -46,34 +67,37 @@ fi
 
 if [ $stage -le 2 ]; then
   echo "$0: aligning with the perturbed low-resolution data"
-  steps/align_fmllr.sh --nj 30 --cmd "$train_cmd" \
-    data/${train_set}_sp data/lang $gmm_dir $ali_dir || exit 1
+  if [ ${align_by_dfsmn} -eq 0 ]; then
+    steps/align_fmllr.sh --nj ${nj} --cmd "${train_cmd}" data/${train_set}_sp data/lang ${gmm_dir} ${ali_dir} || exit 1;
+  else
+    steps/nnet/align.sh --nj ${nj} --cmd "${train_cmd}" data/${train_set}_sp data/lang ${gmm_dir} ${ali_dir} || exit 1;
+  fi
 fi
 
 if [ $stage -le 3 ]; then
   # Create high-resolution MFCC features (with 40 cepstra instead of 13).
   # this shows how you can split across multiple file-systems.
   echo "$0: creating high-resolution MFCC features"
-  mfccdir=mfcc_perturbed_hires
+  mfccdir=mfcc_perturbed_hires$online_affix
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $mfccdir/storage ]; then
     utils/create_split_dir.pl /export/b0{5,6,7,8}/$USER/kaldi-data/mfcc/aishell-$(date +'%m_%d_%H_%M')/s5/$mfccdir/storage $mfccdir/storage
   fi
 
   for datadir in ${train_set}_sp ${test_sets}; do
-    utils/copy_data_dir.sh data/$datadir data/${datadir}_hires
+    utils/copy_data_dir.sh data/$datadir data/${datadir}_hires$online_affix
   done
 
   # do volume-perturbation on the training data prior to extracting hires
   # features; this helps make trained nnets more invariant to test data volume.
-  utils/data/perturb_data_dir_volume.sh data/${train_set}_sp_hires || exit 1;
+  utils/data/perturb_data_dir_volume.sh data/${train_set}_sp_hires$online_affix || exit 1;
 
   for datadir in ${train_set}_sp ${test_sets}; do
-    steps/make_mfcc_pitch.sh --nj 10 --mfcc-config conf/mfcc_hires.conf \
-      --cmd "$train_cmd" data/${datadir}_hires exp/make_hires/$datadir $mfccdir || exit 1;
-    steps/compute_cmvn_stats.sh data/${datadir}_hires exp/make_hires/$datadir $mfccdir || exit 1;
-    utils/fix_data_dir.sh data/${datadir}_hires || exit 1;
+    steps/make_mfcc_pitch$online_affix.sh --nj ${nj} --mfcc-config conf/mfcc_hires.conf \
+      --cmd "$train_cmd" data/${datadir}_hires$online_affix exp/make_hires/$datadir $mfccdir || exit 1;
+    steps/compute_cmvn_stats.sh data/${datadir}_hires$online_affix exp/make_hires/$datadir $mfccdir || exit 1;
+    utils/fix_data_dir.sh data/${datadir}_hires$online_affix || exit 1;
     # create MFCC data dir without pitch to extract iVector
-    utils/data/limit_feature_dim.sh 0:39 data/${datadir}_hires data/${datadir}_hires_nopitch || exit 1;
+    utils/data/limit_feature_dim.sh 0:39 data/${datadir}_hires$online_affix data/${datadir}_hires_nopitch || exit 1;
     steps/compute_cmvn_stats.sh data/${datadir}_hires_nopitch exp/make_hires/$datadir $mfccdir || exit 1;
   done
 fi
@@ -98,7 +122,7 @@ if [ $stage -le 4 ]; then
 
   echo "$0: training the diagonal UBM."
   # Use 512 Gaussians in the UBM.
-  steps/online/nnet2/train_diag_ubm.sh --cmd "$train_cmd" --nj 30 \
+  steps/online/nnet2/train_diag_ubm.sh --cmd "$train_cmd" --nj ${nj} \
     --num-frames 700000 \
     --num-threads 8 \
     ${temp_data_root}/${train_set}_sp_hires_nopitch_subset 512 \
@@ -110,7 +134,7 @@ if [ $stage -le 5 ]; then
   # can be sensitive to the amount of data.  The script defaults to an iVector dimension of
   # 100.
   echo "$0: training the iVector extractor"
-  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 \
+  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj ${nj} \
      data/${train_set}_sp_hires_nopitch exp/nnet3${nnet3_affix}/diag_ubm \
      exp/nnet3${nnet3_affix}/extractor || exit 1;
 fi
@@ -138,14 +162,14 @@ if [ $stage -le 6 ]; then
   temp_data_root=${ivectordir}
   utils/data/modify_speaker_info.sh --utts-per-spk-max 2 \
     data/${train_set}_hires_nopitch ${temp_data_root}/${train_set}_sp_hires_nopitch_max2
-  steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj 30 \
+  steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj ${nj} \
     ${temp_data_root}/${train_set}_sp_hires_nopitch_max2 \
     exp/nnet3${nnet3_affix}/extractor $ivectordir
 
   # Also extract iVectors for the test data, but in this case we don't need the speed
   # perturbation (sp).
   for data in $test_sets; do
-    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj 8 \
+    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj ${nj} \
       data/${data}_hires_nopitch exp/nnet3${nnet3_affix}/extractor \
       exp/nnet3${nnet3_affix}/ivectors_${data}
   done
